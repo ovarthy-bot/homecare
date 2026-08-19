@@ -3,9 +3,13 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   // Colors
-  static const Color background = Color(0xFF121212); // Koyu grafit / Siyaha yakın
+  static const Color background = Color(
+    0xFF121212,
+  ); // Koyu grafit / Siyaha yakın
   static const Color surface = Color(0xFF1E1E1E); // Çok koyu gri
-  static const Color surfaceVariant = Color(0xFF2C2C2C); // Biraz daha açık yüzey
+  static const Color surfaceVariant = Color(
+    0xFF2C2C2C,
+  ); // Biraz daha açık yüzey
 
   static const Color textPrimary = Color(0xFFF5F5F5); // Kırık beyaz
   static const Color textSecondary = Color(0xFFAAAAAA); // Gri
@@ -14,8 +18,10 @@ class AppTheme {
   static const Color statusUpcoming = Color(0xFFFFB300); // Amber/Turuncu
   static const Color statusOverdue = Color(0xFFF44336); // Kırmızı
   static const Color infoWarranty = Color(0xFF29B6F6); // Mavi/Cyan
-  
-  static const Color primaryAction = Color(0xFF3F51B5); // Indigo veya referanstaki lacivert tonları (ana buton için)
+
+  static const Color primaryAction = Color(
+    0xFF3F51B5,
+  ); // Indigo veya referanstaki lacivert tonları (ana buton için)
 
   static ThemeData get darkTheme {
     return ThemeData(
@@ -30,14 +36,27 @@ class AppTheme {
         onPrimary: textPrimary,
         onSurface: textPrimary,
       ),
-      textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme).copyWith(
-        displayLarge: GoogleFonts.inter(color: textPrimary, fontWeight: FontWeight.bold),
-        displayMedium: GoogleFonts.inter(color: textPrimary, fontWeight: FontWeight.bold),
-        titleLarge: GoogleFonts.inter(color: textPrimary, fontWeight: FontWeight.w600),
-        titleMedium: GoogleFonts.inter(color: textPrimary, fontWeight: FontWeight.w500),
-        bodyLarge: GoogleFonts.inter(color: textPrimary),
-        bodyMedium: GoogleFonts.inter(color: textSecondary),
-      ),
+      textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme)
+          .copyWith(
+            displayLarge: GoogleFonts.inter(
+              color: textPrimary,
+              fontWeight: FontWeight.bold,
+            ),
+            displayMedium: GoogleFonts.inter(
+              color: textPrimary,
+              fontWeight: FontWeight.bold,
+            ),
+            titleLarge: GoogleFonts.inter(
+              color: textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+            titleMedium: GoogleFonts.inter(
+              color: textPrimary,
+              fontWeight: FontWeight.w500,
+            ),
+            bodyLarge: GoogleFonts.inter(color: textPrimary),
+            bodyMedium: GoogleFonts.inter(color: textSecondary),
+          ),
       appBarTheme: const AppBarTheme(
         backgroundColor: background,
         elevation: 0,
@@ -49,12 +68,10 @@ class AppTheme {
           fontWeight: FontWeight.bold,
         ),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: surface,
         elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: background,
