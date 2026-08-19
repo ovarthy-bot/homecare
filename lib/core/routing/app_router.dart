@@ -7,6 +7,9 @@ import '../../features/devices/presentation/devices_screen.dart';
 import '../../features/history/presentation/history_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/main/presentation/main_screen.dart';
+import '../../features/devices/presentation/device_detail_screen.dart';
+import '../../features/devices/presentation/add_edit_device_screen.dart';
+import '../../features/devices/presentation/qr_scanner_screen.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
@@ -53,6 +56,32 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
         ],
+      ),
+      GoRoute(
+        path: '/device/:id',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return DeviceDetailScreen(deviceId: id);
+        },
+      ),
+      GoRoute(
+        path: '/devices/add',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const AddEditDeviceScreen(),
+      ),
+      GoRoute(
+        path: '/devices/edit/:id',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return AddEditDeviceScreen(deviceId: id);
+        },
+      ),
+      GoRoute(
+        path: '/scanner',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const QRScannerScreen(),
       ),
     ],
   );

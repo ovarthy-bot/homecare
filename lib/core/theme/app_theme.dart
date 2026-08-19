@@ -31,7 +31,6 @@ class AppTheme {
       colorScheme: const ColorScheme.dark(
         primary: primaryAction,
         surface: surface,
-        background: background,
         error: statusOverdue,
         onPrimary: textPrimary,
         onSurface: textPrimary,
