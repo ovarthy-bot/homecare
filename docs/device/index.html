@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ev Sağlığı - Cihaz Detayı</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-color: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.5);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 24px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .icon-wrapper {
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, var(--accent-color), #8b5cf6);
+            border-radius: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto 20px;
+            box-shadow: 0 10px 20px var(--accent-glow);
+        }
+
+        .icon-wrapper svg {
+            width: 36px;
+            height: 36px;
+            fill: white;
+        }
+
+        .device-name {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin: 0 0 8px 0;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .device-room {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            margin: 0;
+            font-weight: 500;
+        }
+
+        .info-group {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        
+        .info-row:first-child {
+            padding-top: 0;
+        }
+
+        .info-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .info-value {
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-align: right;
+            max-width: 60%;
+        }
+
+        .tasks-header {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin: 30px 0 15px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .task-card {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            transition: transform 0.2s;
+        }
+
+        .task-card:hover {
+            transform: scale(1.02);
+            background: rgba(30, 41, 59, 0.9);
+        }
+
+        .task-name {
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+
+        .task-interval {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .error-state {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        
+        .error-state h2 {
+            color: #ef4444;
+        }
+
+        /* Loading spinner */
+        .loader {
+            width: 48px;
+            height: 48px;
+            border: 5px solid rgba(255, 255, 255, 0.1);
+            border-bottom-color: var(--accent-color);
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container" id="app">
+        <div style="text-align: center; padding: 40px 0;">
+            <span class="loader"></span>
+            <p style="color: var(--text-secondary); margin-top: 20px;">Cihaz bilgileri yükleniyor...</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const app = document.getElementById('app');
+            const urlParams = new URLSearchParams(window.location.search);
+            const deviceId = urlParams.get('id');
+
+            if (!deviceId) {
+                app.innerHTML = `
+                    <div class="error-state">
+                        <h2>Karekod Geçersiz</h2>
+                        <p>Lütfen güncel cihaz karekodunu okutun.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            try {
+                // Fetch JSON data dynamically
+                const response = await fetch(`../data/device_${deviceId}.json?t=${new Date().getTime()}`);
+                
+                if (!response.ok) {
+                    throw new Error('Device not found');
+                }
+                
+                const device = await response.json();
+                renderDevice(device);
+
+            } catch (error) {
+                console.error("Fetch error:", error);
+                app.innerHTML = `
+                    <div class="error-state">
+                        <h2>Cihaz Bulunamadı</h2>
+                        <p>Bu cihaza ait bilgiler henüz senkronize edilmemiş veya silinmiş olabilir.</p>
+                    </div>
+                `;
+            }
+        });
+
+        function renderDevice(device) {
+            let purchaseDateStr = '-';
+            if (device.purchaseDate) {
+                const date = new Date(device.purchaseDate);
+                purchaseDateStr = date.toLocaleDateString('tr-TR');
+            }
+
+            let tasksHtml = '';
+            if (device.tasks && device.tasks.length > 0) {
+                tasksHtml = `
+                    <div class="tasks-header">
+                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-8 14H7v-2h4v2zm4-4H7v-2h8v2zm0-4H7V7h8v2z"/></svg>
+                        Bakım Görevleri
+                    </div>
+                    <div class="task-list">
+                        ${device.tasks.map(t => `
+                            <div class="task-card">
+                                <div class="task-name">${t.name}</div>
+                                <div class="task-interval">${t.intervalDays} Gün</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            const app = document.getElementById('app');
+            app.innerHTML = `
+                <div class="header">
+                    <div class="icon-wrapper">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/>
+                        </svg>
+                    </div>
+                    <h1 class="device-name">${device.name || 'İsimsiz Cihaz'}</h1>
+                    <p class="device-room">${device.room || 'Oda belirtilmemiş'}</p>
+                </div>
+
+                <div class="info-group">
+                    <div class="info-row">
+                        <span class="info-label">Satın Alma</span>
+                        <span class="info-value">${purchaseDateStr}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Garanti</span>
+                        <span class="info-value">${device.warranty || 24} Ay</span>
+                    </div>
+                    ${device.serviceInfo ? `
+                    <div class="info-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                        <span class="info-label">Yetkili Servis</span>
+                        <span class="info-value" style="text-align: left; max-width: 100%;">${device.serviceInfo}</span>
+                    </div>` : ''}
+                    ${device.notes ? `
+                    <div class="info-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                        <span class="info-label">Notlar</span>
+                        <span class="info-value" style="text-align: left; max-width: 100%; color: var(--text-secondary); font-weight: 400;">${device.notes}</span>
+                    </div>` : ''}
+                </div>
+
+                ${tasksHtml}
+            `;
+        }
+    </script>
+</body>
+</html>

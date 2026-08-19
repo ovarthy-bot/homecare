@@ -8,4 +8,5 @@ class SettingsModel {
 
   bool notificationsEnabled = true;
   int defaultReminderDays = 3;
+  String? githubToken;
 }

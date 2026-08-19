@@ -8,9 +8,11 @@ import 'dart:convert';
 import 'package:share_plus/share_plus.dart';
 import 'dart:io';
 import '../../core/services/notification_service.dart';
+import '../../core/services/github_service.dart';
 
 class IsarService {
   late Future<Isar> db;
+  final GithubService _githubService = GithubService();
 
   IsarService() {
     db = openDB();
@@ -166,6 +168,9 @@ class IsarService {
       }
       
       await device.tasks.save();
+      
+      // Sync to GitHub
+      _githubService.syncDeviceToGithub(device, settings);
     });
   }
 
@@ -188,6 +193,9 @@ class IsarService {
           await isar.taskModels.delete(task.id);
         }
         await isar.deviceModels.delete(id);
+        
+        final settings = await isar.settingsModels.where().findFirst() ?? SettingsModel();
+        _githubService.deleteDeviceFromGithub(id, settings);
       }
     });
   }

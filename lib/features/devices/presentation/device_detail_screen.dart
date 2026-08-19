@@ -5,6 +5,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'dart:ui' as ui;
 import 'dart:io';
+import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../data/models/device_model.dart';
@@ -73,11 +74,15 @@ class _DeviceDetailScreenState extends ConsumerState<DeviceDetailScreen> {
     return '1 Aydan az';
   }
 
+  String _generateQrData(DeviceModel device) {
+    return 'https://ovarthy-bot.github.io/homecare/device/index.html?id=${device.id}';
+  }
+
   void _showQrDialog() {
     showDialog(
       context: context,
       builder: (context) {
-        final qrData = 'https://ovarthy-bot.github.io/homecare/device/${widget.deviceId}';
+        final qrData = _generateQrData(_device!);
         return AlertDialog(
           title: Text(_device!.name),
           content: SizedBox(

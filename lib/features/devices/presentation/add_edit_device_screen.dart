@@ -146,7 +146,12 @@ class _AddEditDeviceScreenState extends ConsumerState<AddEditDeviceScreen> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.only(
+            left: 16, 
+            right: 16, 
+            top: 16, 
+            bottom: MediaQuery.of(context).padding.bottom + 100,
+          ),
           children: [
             Center(
               child: GestureDetector(

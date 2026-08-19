@@ -66,6 +66,35 @@ class SettingsScreen extends ConsumerWidget {
               ),
               const Divider(),
               ListTile(
+                title: const Text('GitHub Access Token'),
+                subtitle: Text(settings.githubToken != null && settings.githubToken!.isNotEmpty ? 'Token kayıtlı' : 'Web senkronizasyonu için gerekli'),
+                trailing: const Icon(Icons.edit),
+                onTap: () {
+                  showDialog(context: context, builder: (_) {
+                    final controller = TextEditingController(text: settings.githubToken ?? '');
+                    return AlertDialog(
+                      title: const Text('GitHub Token'),
+                      content: TextField(
+                        controller: controller,
+                        decoration: const InputDecoration(hintText: 'ghp_...'),
+                        obscureText: true,
+                      ),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
+                        TextButton(onPressed: () async {
+                          settings.githubToken = controller.text.trim();
+                          final isarService = ref.read(isarServiceProvider);
+                          await isarService.updateSettings(settings);
+                          ref.invalidate(settingsProvider);
+                          if (context.mounted) Navigator.pop(context);
+                        }, child: const Text('Kaydet')),
+                      ],
+                    );
+                  });
+                },
+              ),
+              const Divider(),
+              ListTile(
                 leading: const Icon(Icons.print),
                 title: const Text('Tüm Karekodları Yazdır (A4)'),
                 subtitle: const Text('Tüm cihazların karekodlarını tek bir A4 sayfasına sığdırıp yazdırın.'),
@@ -98,13 +127,13 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: const Text('Önceden aktarılan JSON dosyasını yükle'),
                 onTap: () async {
                   try {
-                    final result = await FilePicker.platform.pickFiles(
+                    final result = await FilePicker.pickFiles(
                       type: FileType.custom,
                       allowedExtensions: ['json'],
                     );
 
-                    if (result != null && result.files.single.path != null) {
-                      final file = File(result.files.single.path!);
+                    if (result != null && result.isNotEmpty && result.first.path != null) {
+                      final file = File(result.first.path!);
                       final jsonString = await file.readAsString();
 
                       if (!context.mounted) return;

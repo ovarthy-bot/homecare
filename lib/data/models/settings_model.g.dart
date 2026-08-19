@@ -22,8 +22,13 @@ const SettingsModelSchema = CollectionSchema(
       name: r'defaultReminderDays',
       type: IsarType.long,
     ),
-    r'notificationsEnabled': PropertySchema(
+    r'githubToken': PropertySchema(
       id: 1,
+      name: r'githubToken',
+      type: IsarType.string,
+    ),
+    r'notificationsEnabled': PropertySchema(
+      id: 2,
       name: r'notificationsEnabled',
       type: IsarType.bool,
     )
@@ -48,6 +53,12 @@ int _settingsModelEstimateSize(
   Map<Type, List<int>> allOffsets,
 ) {
   var bytesCount = offsets.last;
+  {
+    final value = object.githubToken;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   return bytesCount;
 }
 
@@ -58,7 +69,8 @@ void _settingsModelSerialize(
   Map<Type, List<int>> allOffsets,
 ) {
   writer.writeLong(offsets[0], object.defaultReminderDays);
-  writer.writeBool(offsets[1], object.notificationsEnabled);
+  writer.writeString(offsets[1], object.githubToken);
+  writer.writeBool(offsets[2], object.notificationsEnabled);
 }
 
 SettingsModel _settingsModelDeserialize(
@@ -69,8 +81,9 @@ SettingsModel _settingsModelDeserialize(
 ) {
   final object = SettingsModel();
   object.defaultReminderDays = reader.readLong(offsets[0]);
+  object.githubToken = reader.readStringOrNull(offsets[1]);
   object.id = id;
-  object.notificationsEnabled = reader.readBool(offsets[1]);
+  object.notificationsEnabled = reader.readBool(offsets[2]);
   return object;
 }
 
@@ -84,6 +97,8 @@ P _settingsModelDeserializeProp<P>(
     case 0:
       return (reader.readLong(offset)) as P;
     case 1:
+      return (reader.readStringOrNull(offset)) as P;
+    case 2:
       return (reader.readBool(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -242,6 +257,160 @@ extension SettingsModelQueryFilter
     });
   }
 
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      githubTokenIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'githubToken',
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      githubTokenIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'githubToken',
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      githubTokenEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'githubToken',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      githubTokenGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'githubToken',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      githubTokenLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'githubToken',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      githubTokenBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'githubToken',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      githubTokenStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'githubToken',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      githubTokenEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'githubToken',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      githubTokenContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'githubToken',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      githubTokenMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'githubToken',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      githubTokenIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'githubToken',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      githubTokenIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'githubToken',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition> idEqualTo(
       Id value) {
     return QueryBuilder.apply(this, (query) {
@@ -329,6 +498,19 @@ extension SettingsModelQuerySortBy
     });
   }
 
+  QueryBuilder<SettingsModel, SettingsModel, QAfterSortBy> sortByGithubToken() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'githubToken', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterSortBy>
+      sortByGithubTokenDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'githubToken', Sort.desc);
+    });
+  }
+
   QueryBuilder<SettingsModel, SettingsModel, QAfterSortBy>
       sortByNotificationsEnabled() {
     return QueryBuilder.apply(this, (query) {
@@ -357,6 +539,19 @@ extension SettingsModelQuerySortThenBy
       thenByDefaultReminderDaysDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'defaultReminderDays', Sort.desc);
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterSortBy> thenByGithubToken() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'githubToken', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterSortBy>
+      thenByGithubTokenDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'githubToken', Sort.desc);
     });
   }
 
@@ -396,6 +591,13 @@ extension SettingsModelQueryWhereDistinct
     });
   }
 
+  QueryBuilder<SettingsModel, SettingsModel, QDistinct> distinctByGithubToken(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'githubToken', caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<SettingsModel, SettingsModel, QDistinct>
       distinctByNotificationsEnabled() {
     return QueryBuilder.apply(this, (query) {
@@ -416,6 +618,12 @@ extension SettingsModelQueryProperty
       defaultReminderDaysProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'defaultReminderDays');
+    });
+  }
+
+  QueryBuilder<SettingsModel, String?, QQueryOperations> githubTokenProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'githubToken');
     });
   }
 
