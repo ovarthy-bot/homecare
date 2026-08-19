@@ -77,7 +77,7 @@ class _DeviceDetailScreenState extends ConsumerState<DeviceDetailScreen> {
     showDialog(
       context: context,
       builder: (context) {
-        final qrData = 'homecare://device/${widget.deviceId}';
+        final qrData = 'https://app.homecare.com/device/${widget.deviceId}';
         return AlertDialog(
           title: Text(_device!.name),
           content: SizedBox(

@@ -27,7 +27,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
           for (final barcode in barcodes) {
             if (barcode.rawValue != null) {
               final String code = barcode.rawValue!;
-              if (code.startsWith('homecare://device/')) {
+              if (code.startsWith('homecare://device/') || code.startsWith('https://app.homecare.com/device/')) {
                 _isScanned = true;
                 final idStr = code.split('/').last;
                 if (int.tryParse(idStr) != null) {
