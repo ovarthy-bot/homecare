@@ -4,7 +4,7 @@
 <dict>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
-		<string>applinks:app.homecare.com</string>
+		<string>applinks:ovarthy-bot.github.io</string>
 	</array>
 </dict>
 </plist>
