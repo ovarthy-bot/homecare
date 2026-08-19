@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../dashboard/presentation/providers/dashboard_providers.dart';
 import '../../../data/models/settings_model.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:io';
 import '../utils/qr_pdf_generator.dart';
 
 final settingsProvider = FutureProvider<SettingsModel>((ref) {
@@ -88,6 +90,61 @@ class SettingsScreen extends ConsumerWidget {
                 onTap: () async {
                   final isarService = ref.read(isarServiceProvider);
                   await isarService.exportDataAsJson();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.upload),
+                title: const Text('Veri İçe Aktarma'),
+                subtitle: const Text('Önceden aktarılan JSON dosyasını yükle'),
+                onTap: () async {
+                  try {
+                    final result = await FilePicker.platform.pickFiles(
+                      type: FileType.custom,
+                      allowedExtensions: ['json'],
+                    );
+
+                    if (result != null && result.files.single.path != null) {
+                      final file = File(result.files.single.path!);
+                      final jsonString = await file.readAsString();
+
+                      if (!context.mounted) return;
+                      
+                      final shouldClear = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('İçe Aktarma Seçeneği'),
+                          content: const Text(
+                              'Mevcut tüm cihazlarınızı silip sadece dosyadakileri mi yüklemek istersiniz, yoksa dosyadakileri mevcut cihazlara eklemek mi istersiniz?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Üstüne Ekle'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text('Mevcutları Sil', style: TextStyle(color: Colors.red)),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (shouldClear == null) return; // User cancelled
+
+                      final isarService = ref.read(isarServiceProvider);
+                      await isarService.importDataFromJson(jsonString, clearExisting: shouldClear);
+                      
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Veriler başarıyla içe aktarıldı.')),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('İçe aktarma hatası: $e')),
+                      );
+                    }
+                  }
                 },
               ),
               const Divider(),

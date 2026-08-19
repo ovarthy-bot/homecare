@@ -20,13 +20,13 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
     'Bakım Gerekiyor',
     'Yaklaşan',
     'Garanti',
-    'Sorunsuz'
+    'Sorunsuz',
   ];
 
   @override
   Widget build(BuildContext context) {
     final devicesAsyncValue = ref.watch(devicesProvider);
-    final _selectedFilter = ref.watch(deviceFilterProvider);
+    final selectedFilter = ref.watch(deviceFilterProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -36,12 +36,17 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 8.0,
+                ),
                 child: TextField(
                   decoration: InputDecoration(
                     hintText: 'Cihaz ara...',
                     prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     contentPadding: const EdgeInsets.symmetric(vertical: 0),
                   ),
                   onChanged: (val) {
@@ -53,17 +58,21 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
               ),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 4.0,
+                ),
                 child: Row(
                   children: _filters.map((filter) {
-                    final isSelected = _selectedFilter == filter;
+                    final isSelected = selectedFilter == filter;
                     return Padding(
                       padding: const EdgeInsets.only(right: 8.0),
                       child: ChoiceChip(
                         label: Text(filter),
                         selected: isSelected,
                         onSelected: (selected) {
-                          ref.read(deviceFilterProvider.notifier).state = filter;
+                          ref.read(deviceFilterProvider.notifier).state =
+                              filter;
                         },
                       ),
                     );
@@ -77,32 +86,37 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
       body: devicesAsyncValue.when(
         data: (devices) {
           final filteredDevices = devices.where((d) {
-            if (_searchQuery.isNotEmpty && !d.name.toLowerCase().contains(_searchQuery)) {
+            if (_searchQuery.isNotEmpty &&
+                !d.name.toLowerCase().contains(_searchQuery)) {
               return false;
             }
-            if (_selectedFilter == 'Tümü') return true;
-            
+            if (selectedFilter == 'Tümü') return true;
+
             int minDays = 9999;
             for (var t in d.tasks) {
               if (t.daysRemaining < minDays) minDays = t.daysRemaining;
             }
 
-            if (_selectedFilter == 'Bakım Gerekiyor') {
+            if (selectedFilter == 'Bakım Gerekiyor') {
               return minDays < 0;
             }
-            if (_selectedFilter == 'Yaklaşan') {
+            if (selectedFilter == 'Yaklaşan') {
               return minDays >= 0 && minDays <= 14;
             }
-            if (_selectedFilter == 'Garanti') {
+            if (selectedFilter == 'Garanti') {
               if (d.purchaseDate == null) return false;
-              final expiry = d.purchaseDate!.add(Duration(days: 30 * d.warrantyMonths));
+              final expiry = d.purchaseDate!.add(
+                Duration(days: 30 * d.warrantyMonths),
+              );
               final daysLeft = expiry.difference(DateTime.now()).inDays;
               return daysLeft >= 0 && daysLeft <= 60;
             }
-            if (_selectedFilter == 'Sorunsuz') {
+            if (selectedFilter == 'Sorunsuz') {
               bool isWarrantyOk = true;
               if (d.purchaseDate != null) {
-                final expiry = d.purchaseDate!.add(Duration(days: 30 * d.warrantyMonths));
+                final expiry = d.purchaseDate!.add(
+                  Duration(days: 30 * d.warrantyMonths),
+                );
                 final daysLeft = expiry.difference(DateTime.now()).inDays;
                 if (daysLeft < 0 || daysLeft <= 60) isWarrantyOk = false;
               }
@@ -112,7 +126,9 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
           }).toList();
 
           if (filteredDevices.isEmpty) {
-            return const Center(child: Text('Kriterlere uygun cihaz bulunamadı.'));
+            return const Center(
+              child: Text('Kriterlere uygun cihaz bulunamadı.'),
+            );
           }
 
           return ListView.builder(
@@ -137,7 +153,9 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
                           width: 50,
                           height: 50,
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Icon(Icons.devices, color: Colors.grey),

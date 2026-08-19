@@ -253,4 +253,51 @@ class IsarService {
     // ignore: deprecated_member_use
     await Share.shareXFiles([XFile(file.path)], text: 'Ev Sağlığı Cihaz Verileri');
   }
+
+  Future<void> importDataFromJson(String jsonString, {bool clearExisting = false}) async {
+    final data = jsonDecode(jsonString);
+    if (data['devices'] == null) throw Exception('Geçersiz veri formatı');
+    
+    final isar = await db;
+    await isar.writeTxn(() async {
+      if (clearExisting) {
+        await isar.deviceModels.clear();
+        await isar.taskModels.clear();
+      }
+      
+      final devicesList = data['devices'] as List;
+      for (var d in devicesList) {
+        final device = DeviceModel()
+          ..name = d['name'] ?? 'İsimsiz Cihaz'
+          ..room = d['room'] ?? ''
+          ..notes = d['notes']
+          ..serviceInfo = d['serviceInfo']
+          ..imagePath = d['imagePath'];
+          
+        if (d['purchaseDate'] != null) {
+          device.purchaseDate = DateTime.tryParse(d['purchaseDate']);
+        }
+        
+        await isar.deviceModels.put(device);
+        
+        final tasksList = d['tasks'] as List?;
+        if (tasksList != null) {
+          for (var t in tasksList) {
+            final task = TaskModel()
+              ..name = t['name'] ?? 'İsimsiz Görev'
+              ..intervalDays = t['intervalDays'] ?? 30;
+              
+            if (t['lastCompletedAt'] != null) {
+              task.lastCompletedAt = DateTime.tryParse(t['lastCompletedAt']);
+            }
+            
+            task.device.value = device;
+            await isar.taskModels.put(task);
+            device.tasks.add(task);
+          }
+          await device.tasks.save();
+        }
+      }
+    });
+  }
 }
