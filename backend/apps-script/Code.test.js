@@ -213,6 +213,70 @@ describe('Code.gs', () => {
     });
   });
 
+  describe('ziyaretçi: bekleyen kayıtlar cihaz bilgisine yansır', () => {
+    const lastDone = (response, taskId) => response.device.tasks.find((t) => t.id === taskId).lastCompletedAt;
+    const pulledAt = (taskId) => backend.get(owner({ action: 'pull' })).records.filter((r) => r.taskId === taskId).map((r) => r.recordedAt);
+
+    it('kayıt bırakılınca görevin bakım tarihi telefon almadan da hemen güncellenir', () => {
+      const before = backend.get({ action: 'device', ...visitor(3) });
+      assert.equal(lastDone(before, 11), '2026-09-01T10:00:00.000Z');
+      assert.equal(lastDone(before, 12), undefined);
+
+      backend.post({ action: 'record', ...visitor(3, { taskIds: [11, 12] }) });
+
+      const after = backend.get({ action: 'device', ...visitor(3) });
+      assert.equal(lastDone(after, 11), pulledAt(11)[0]);
+      assert.equal(lastDone(after, 12), pulledAt(12)[0]);
+    });
+
+    it('yalnızca kayıt bırakılan görev değişir', () => {
+      backend.post({ action: 'record', ...visitor(3, { taskIds: [12] }) });
+
+      const after = backend.get({ action: 'device', ...visitor(3) });
+      assert.equal(lastDone(after, 11), '2026-09-01T10:00:00.000Z');
+      assert.equal(lastDone(after, 12), pulledAt(12)[0]);
+    });
+
+    it('aynı görev için birden çok bekleyen kayıt varsa en yenisi görünür', () => {
+      backend.post({ action: 'record', ...visitor(3, { taskIds: [11] }) });
+      backend.advance(61 * 1000);
+      backend.post({ action: 'record', ...visitor(3, { taskIds: [11] }) });
+
+      const [first, second] = pulledAt(11);
+      assert.ok(Date.parse(second) > Date.parse(first));
+      assert.equal(lastDone(backend.get({ action: 'device', ...visitor(3) }), 11), second);
+    });
+
+    it('depolanan tarih bekleyen kayıttan yeniyse depolanan korunur', () => {
+      backend.post(owner({ action: 'putDevices', devices: [{ ...coffeeMachine, tasks: [{ id: 11, name: 'Kireç çözme', intervalDays: 60, lastCompletedAt: '2999-01-01T00:00:00.000Z' }] }] }));
+      backend.post({ action: 'record', ...visitor(3, { taskIds: [11] }) });
+
+      assert.equal(lastDone(backend.get({ action: 'device', ...visitor(3) }), 11), '2999-01-01T00:00:00.000Z');
+    });
+
+    it('telefon kaydı alıp tarihi gönderince telefonun değeri geçerli olur, geri alma da yansır', () => {
+      backend.post({ action: 'record', ...visitor(3, { taskIds: [11] }) });
+      const [recordedAt] = pulledAt(11);
+      const record = backend.get(owner({ action: 'pull' })).records[0];
+      backend.post(owner({ action: 'ack', ids: [record.recordId] }));
+
+      // Telefon aldıktan sonra güncel tarihi gönderir.
+      backend.post(owner({ action: 'putDevices', devices: [{ ...coffeeMachine, tasks: [{ id: 11, name: 'Kireç çözme', intervalDays: 60, lastCompletedAt: recordedAt }, coffeeMachine.tasks[1]] }] }));
+      assert.equal(lastDone(backend.get({ action: 'device', ...visitor(3) }), 11), recordedAt);
+
+      // Telefonda geri alınırsa eski tarih gönderilir ve bekleyen kayıt kalmadığı için o geçerli olur.
+      backend.post(owner({ action: 'putDevices', devices: [coffeeMachine] }));
+      assert.equal(lastDone(backend.get({ action: 'device', ...visitor(3) }), 11), '2026-09-01T10:00:00.000Z');
+    });
+
+    it('başka cihazın bekleyen kaydı bu cihaza karışmaz', () => {
+      backend.post(owner({ action: 'putDevices', devices: [{ id: 4, name: 'Klima', room: 'Salon', tasks: [{ id: 11, name: 'Aynı numaralı görev', intervalDays: 30 }] }] }));
+      backend.post({ action: 'record', ...visitor(3, { taskIds: [11] }) });
+
+      assert.equal(lastDone(backend.get({ action: 'device', ...visitor(4) }), 11), undefined);
+    });
+  });
+
   describe('çekme ve onaylama', () => {
     it('onaylanan kayıtlar bir daha gelmez, onaylanmayanlar kalır', () => {
       backend.post({ action: 'record', ...visitor(3, { taskIds: [11, 12] }) });

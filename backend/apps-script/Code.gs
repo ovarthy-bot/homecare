@@ -117,7 +117,31 @@ function safeEqual_(a, b) {
 function getDevice_(p, id) {
   var found = findDevice_(id);
   if (!found) return { ok: false, error: 'not_found' };
-  return { ok: true, device: JSON.parse(found.json) };
+
+  var device = JSON.parse(found.json);
+  applyPendingRecords_(device, id);
+  return { ok: true, device: device };
+}
+
+/**
+ * Telefonun henüz almadığı (bekleyen) web kayıtlarını görevlerin bakım tarihine yansıtır; böylece
+ * sayfa, uygulama açılmadan da güncel durumu gösterir ve görev başkası tarafından yeniden
+ * kaydedilmeye yönlenmez. Saklanan veri değişmez: telefon kaydı alıp kendi tarihini gönderince
+ * bekleyen kayıt kalmaz ve telefonun değeri (geri alma dahil) geçerli olur.
+ */
+function applyPendingRecords_(device, id) {
+  var latest = {};
+  readRecords_(recordsSheet_(), 0).forEach(function (r) {
+    if (r.status !== 'pending' || r.deviceId !== id) return;
+    if (!latest[r.taskId] || Date.parse(r.recordedAt) > Date.parse(latest[r.taskId])) latest[r.taskId] = r.recordedAt;
+  });
+
+  (device.tasks || []).forEach(function (task) {
+    var pending = latest[String(task.id)];
+    if (pending && (!task.lastCompletedAt || Date.parse(pending) > Date.parse(task.lastCompletedAt))) {
+      task.lastCompletedAt = pending;
+    }
+  });
 }
 
 function recordTasks_(p, id) {

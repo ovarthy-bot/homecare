@@ -54,6 +54,12 @@ yoksa eski sürüm çalışmaya devam eder.
 - **Veriler sizde kalır.** Cihaz bilgileri ve kayıtlar yalnızca sizin Google hesabınızdaki Sheet'te durur,
   herkese açık bir depoya yazılmaz. Eski GitHub token ile eşitleme isteğe bağlı olarak çalışmaya devam eder
   ama artık gerekmez; `docs/config.js` doluyken sayfa verileri Sheet'ten alır.
+- **Telefon kayıtları ancak uygulama açılınca alır.** Uygulama kapalıyken kayıtlar Sheet'te `pending`
+  bekler, kaybolmaz. Telefonun veritabanına, Geçmiş'e ve hatırlatmalara uygulamayı açınca (ya da Ayarlar →
+  Şimdi Eşitle ile) işlenir.
+- **Cihaz sayfası güncel görünür.** Bekleyen web kayıtları görevlerin bakım tarihine hemen yansıtılır;
+  telefon almadan da sayfa görevi “yapıldı” gösterir ve başkası aynı görevi yeniden kaydetmeye yönlenmez.
+  (Sheet'te saklanan veri değişmez, telefon kendi tarihini gönderince onunki geçerli olur.)
 - **Tek sahip telefonu.** Kayıtlar çekilince “alındı” işaretlenir; aynı anahtarla iki telefon eşitlenirse
   kaydı yalnızca ilk çeken telefon görür.
 - **`SECRET`'ı değiştirirseniz** uygulamadaki anahtarı da güncelleyin ve karekodları yeniden yazdırın.
