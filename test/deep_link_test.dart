@@ -16,6 +16,18 @@ void main() {
       expect(link?.location, '/bakim/yapildi?cihaz=42');
     });
 
+    test('cihaz anahtarı karekoda eklenir ve uygulama çözümlemesini bozmaz', () {
+      final data = DeepLink.qrData(42, key: '88a43b1b8ef6d2e9');
+
+      expect(data, 'https://ovarthy-bot.github.io/homecare/device/index.html?id=42&k=88a43b1b8ef6d2e9');
+      expect(DeepLink.parse(data)?.deviceId, 42);
+      expect(DeepLink.parse(data)?.type, DeepLinkType.recordMaintenance);
+    });
+
+    test('anahtarsız karekod eski biçimle aynıdır', () {
+      expect(DeepLink.qrData(7), 'https://ovarthy-bot.github.io/homecare/device/index.html?id=7');
+    });
+
     test('sayfadaki düğmenin uygulama bağlantısı geri çözülür', () {
       expect(DeepLink.maintenanceDoneLink(42), 'homecare://app/bakim/yapildi?cihaz=42');
 

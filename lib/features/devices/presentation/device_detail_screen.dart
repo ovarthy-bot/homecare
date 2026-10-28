@@ -12,6 +12,7 @@ import '../../../data/models/device_categories.dart';
 import '../../../data/models/device_model.dart';
 import '../../../data/models/task_model.dart';
 import '../../../core/deep_link/deep_link.dart';
+import '../../../core/services/backend_service.dart';
 import '../../dashboard/presentation/providers/dashboard_providers.dart';
 import '../../settings/utils/qr_pdf_generator.dart';
 
@@ -77,11 +78,15 @@ class _DeviceDetailScreenState extends ConsumerState<DeviceDetailScreen> {
     return '1 Aydan az';
   }
 
-  void _showQrDialog() {
+  Future<void> _showQrDialog() async {
+    final settings = await ref.read(isarServiceProvider).getSettings();
+    if (!mounted) return;
+    final qrKey = BackendService.qrKeyFor(settings, _device!.id);
+
     showDialog(
       context: context,
       builder: (context) {
-        final qrData = DeepLink.qrData(_device!.id);
+        final qrData = DeepLink.qrData(_device!.id, key: qrKey);
         return AlertDialog(
           title: Text(_device!.name),
           content: Column(
@@ -98,8 +103,12 @@ class _DeviceDetailScreenState extends ConsumerState<DeviceDetailScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Yazdırıp cihazın yanına yapıştırın. Uygulamanın tarayıcısıyla okutunca bakım '
-                'otomatik kaydedilir; telefonun kamerasıyla okutunca cihaz sayfası açılır.',
+                qrKey == null
+                    ? 'Yazdırıp cihazın yanına yapıştırın. Uygulamanın tarayıcısıyla okutunca bakım '
+                        'otomatik kaydedilir; telefonun kamerasıyla okutunca cihaz sayfası açılır.'
+                    : 'Yazdırıp cihazın yanına yapıştırın. Uygulamanın tarayıcısıyla okutunca bakım '
+                        'otomatik kaydedilir. Telefonun kamerasıyla okutan, uygulaması olmasa da '
+                        'cihaz sayfasından bakım kaydı bırakabilir.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
@@ -111,7 +120,7 @@ class _DeviceDetailScreenState extends ConsumerState<DeviceDetailScreen> {
               child: const Text('Kapat'),
             ),
             OutlinedButton.icon(
-              onPressed: () => QrPdfGenerator.generateAndPrintA4([_device!]),
+              onPressed: () => QrPdfGenerator.generateAndPrintA4([_device!], settings: settings),
               icon: const Icon(Icons.print),
               label: const Text('Yazdır'),
             ),

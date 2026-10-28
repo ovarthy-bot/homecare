@@ -11,4 +11,12 @@ class HistoryModel {
   late DateTime completedAt;
   
   int? deviceId;
+
+  static const sourceWeb = 'web';
+
+  /// Kaydın nereden geldiği: `null` uygulama, [sourceWeb] uygulaması olmayan telefondan.
+  String? source;
+
+  /// Ara depodaki kayıt numarası; aynı kaydın iki kez içe aktarılmasını önler.
+  String? externalId;
 }

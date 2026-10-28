@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/device_model.dart';
@@ -12,12 +13,14 @@ import 'package:share_plus/share_plus.dart';
 import 'dart:io';
 import '../../core/services/notification_service.dart';
 import '../../core/services/github_service.dart';
+import '../../core/services/backend_service.dart';
 
 class IsarService {
   late Future<Isar> db;
   final GithubService _githubService = GithubService();
+  final BackendService _backend;
 
-  IsarService() {
+  IsarService({BackendService? backend}) : _backend = backend ?? BackendService() {
     db = openDB();
   }
 
@@ -198,6 +201,8 @@ class IsarService {
       // Sync to GitHub
       _githubService.syncDeviceToGithub(device, settings);
     });
+
+    unawaited(_pushDevice(device.id));
   }
 
   Future<void> _scheduleReminder(DeviceModel device, TaskModel task, SettingsModel settings) async {
@@ -251,6 +256,8 @@ class IsarService {
         _githubService.deleteDeviceFromGithub(id, settings);
       }
     });
+
+    unawaited(_deleteRemote(id));
   }
 
   Future<void> logTaskCompletion(int deviceId, String deviceName, String taskName) async {
@@ -347,6 +354,7 @@ class IsarService {
     });
 
     await _refreshReminders(device, selected);
+    unawaited(_pushDevice(device.id));
 
     return MaintenanceReceipt(
       deviceId: device.id,
@@ -376,6 +384,118 @@ class IsarService {
 
     final device = await isar.deviceModels.get(receipt.deviceId);
     if (device != null) await _refreshReminders(device, restored);
+    unawaited(_pushDevice(receipt.deviceId));
+  }
+
+  // --- Ara depo (web'den bakım kaydı) -------------------------------------------------------
+
+  /// Cihazı ara depoya gönderir. En iyi çaba: kurulu değilse ya da ağ yoksa sessizce geçer.
+  Future<void> _pushDevice(int deviceId) async {
+    try {
+      final settings = await getSettings();
+      if (!BackendService.isConfigured(settings)) return;
+      final device = await getDeviceById(deviceId);
+      if (device == null) return;
+      await _backend.pushDevices(settings, [device]);
+    } catch (e) {
+      debugPrint('Cihaz ara depoya gönderilemedi: $e');
+    }
+  }
+
+  Future<void> _deleteRemote(int deviceId) async {
+    try {
+      final settings = await getSettings();
+      if (!BackendService.isConfigured(settings)) return;
+      await _backend.deleteDevice(settings, deviceId);
+    } catch (e) {
+      debugPrint('Cihaz ara depodan silinemedi: $e');
+    }
+  }
+
+  /// Ara depodaki bekleyen web kayıtlarını telefona alır, sonra tüm cihazları (güncel bakım
+  /// tarihleriyle) ara depoya gönderir. Kurulu değilse `null` döner; kayıtlar alınamazsa
+  /// [BackendException] fırlatır. Cihazların gönderilememesi sonucu bozmaz, `pushError`a yazılır.
+  Future<WebSyncResult?> syncWithBackend() async {
+    final settings = await getSettings();
+    if (!BackendService.isConfigured(settings)) return null;
+
+    final records = await _backend.pullRecords(settings);
+    final imported = await _importWebRecords(records);
+    // Alınan ve bu telefonda karşılığı olmayan her kayıt onaylanır; yoksa her eşitlemede yeniden gelir.
+    await _backend.acknowledge(settings, records.map((r) => r.recordId).toList());
+
+    var pushedDevices = 0;
+    String? pushError;
+    try {
+      final devices = await getDevices();
+      for (final device in devices) {
+        await device.tasks.load();
+      }
+      await _backend.pushDevices(settings, devices);
+      pushedDevices = devices.length;
+    } catch (e) {
+      pushError = '$e';
+    }
+
+    return WebSyncResult(
+      imported: imported.imported,
+      unmatched: imported.unmatched,
+      pushedDevices: pushedDevices,
+      pushError: pushError,
+    );
+  }
+
+  Future<({int imported, int unmatched})> _importWebRecords(List<WebRecord> records) async {
+    if (records.isEmpty) return (imported: 0, unmatched: 0);
+
+    final isar = await db;
+    var imported = 0;
+    var unmatched = 0;
+    final devices = <int, DeviceModel?>{};
+    final touched = <int, List<TaskModel>>{};
+
+    await isar.writeTxn(() async {
+      for (final record in records) {
+        // Daha önce alınmış ama onayı gidememiş kayıt: tekrar ekleme.
+        final alreadyImported = await isar.historyModels.filter().externalIdEqualTo(record.recordId).findFirst();
+        if (alreadyImported != null) continue;
+
+        if (!devices.containsKey(record.deviceId)) {
+          final device = await isar.deviceModels.get(record.deviceId);
+          await device?.tasks.load();
+          devices[record.deviceId] = device;
+        }
+        final device = devices[record.deviceId];
+        final task = device?.tasks.where((t) => t.id == record.taskId).firstOrNull;
+        if (device == null || task == null) {
+          unmatched++;
+          continue;
+        }
+
+        await isar.historyModels.put(
+          HistoryModel()
+            ..deviceId = device.id
+            ..deviceName = device.name
+            ..taskName = task.name
+            ..completedAt = record.recordedAt
+            ..source = HistoryModel.sourceWeb
+            ..externalId = record.recordId,
+        );
+
+        final last = task.lastCompletedAt;
+        if (last == null || record.recordedAt.isAfter(last)) {
+          task.lastCompletedAt = record.recordedAt;
+          await isar.taskModels.put(task);
+        }
+        touched.putIfAbsent(device.id, () => []).add(task);
+        imported++;
+      }
+    });
+
+    for (final entry in touched.entries) {
+      await _refreshReminders(devices[entry.key]!, entry.value);
+    }
+    return (imported: imported, unmatched: unmatched);
   }
 
   Stream<List<HistoryModel>> listenToHistory() async* {

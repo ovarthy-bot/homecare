@@ -184,14 +184,14 @@
 
         .open-app-button {
             display: block;
-            padding: 16px 20px;
+            padding: 14px 20px;
             border-radius: 14px;
-            background: linear-gradient(135deg, var(--accent-color), #8b5cf6);
-            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: rgba(15, 23, 42, 0.6);
+            color: var(--text-primary);
             font-weight: 600;
-            font-size: 1rem;
+            font-size: 0.95rem;
             text-decoration: none;
-            box-shadow: 0 8px 20px var(--accent-glow);
         }
 
         .open-app-hint {
@@ -203,6 +203,113 @@
 
         .open-app-hint[hidden] {
             display: none;
+        }
+
+        .task-card.selectable {
+            cursor: pointer;
+            gap: 12px;
+            justify-content: flex-start;
+        }
+
+        .task-card.selectable input {
+            width: 22px;
+            height: 22px;
+            flex: 0 0 auto;
+            accent-color: var(--accent-color);
+        }
+
+        .task-card.done {
+            opacity: 0.6;
+            cursor: default;
+        }
+
+        .task-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+        }
+
+        .task-status {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .task-status.overdue { color: #f87171; }
+        .task-status.due, .task-status.soon { color: #fbbf24; }
+        .task-status.ok { color: #4ade80; }
+
+        .record-button {
+            display: block;
+            width: 100%;
+            margin-top: 20px;
+            padding: 16px 20px;
+            border: none;
+            border-radius: 14px;
+            background: linear-gradient(135deg, var(--accent-color), #8b5cf6);
+            color: #fff;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 8px 20px var(--accent-glow);
+        }
+
+        .record-button:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .form-error {
+            margin: 12px 0 0;
+            color: #f87171;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        .form-error[hidden] {
+            display: none;
+        }
+
+        .success-state {
+            text-align: center;
+            padding: 10px 0 0;
+        }
+
+        .success-state svg {
+            width: 72px;
+            height: 72px;
+            stroke: #4ade80;
+            fill: none;
+            stroke-width: 2.4;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .success-state h2 {
+            margin: 12px 0 8px;
+        }
+
+        .success-state p {
+            margin: 6px 0;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+        .secondary-button {
+            margin-top: 16px;
+            padding: 12px 18px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            background: transparent;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.95rem;
+            cursor: pointer;
         }
 
         /* Loading spinner */
@@ -231,53 +338,144 @@
         </div>
     </div>
 
+    <script src="../config.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', async () => {
-            const app = document.getElementById('app');
-            const urlParams = new URLSearchParams(window.location.search);
-            const rawId = urlParams.get('id');
+        // Ara depo adresi ../config.js içinde tanımlanır. Boşsa sayfa yalnızca bilgi gösterir.
+        const BACKEND_URL = (window.HOMECARE_BACKEND_URL || '').trim();
+        const app = document.getElementById('app');
+
+        const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => (
+            { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+        ));
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const rawId = params.get('id');
+            const rawKey = params.get('k');
+            // Adresten gelen değerler bağlantılara ve isteklere girer; yalnızca beklenen biçim kabul edilir.
             const deviceId = /^[0-9]+$/.test(rawId || '') ? rawId : null;
+            const key = /^[0-9a-fA-F]{16}$/.test(rawKey || '') ? rawKey : null;
 
             if (!deviceId) {
-                app.innerHTML = `
-                    <div class="error-state">
-                        <h2>Karekod Geçersiz</h2>
-                        <p>Lütfen güncel cihaz karekodunu okutun.</p>
-                    </div>
-                `;
-                return;
-            }
-
-            try {
-                // Fetch JSON data dynamically
-                const response = await fetch(`../data/device_${deviceId}.json?t=${new Date().getTime()}`);
-                
-                if (!response.ok) {
-                    throw new Error('Device not found');
-                }
-                
-                const device = await response.json();
-                renderDevice(device, deviceId);
-
-            } catch (error) {
-                console.error("Fetch error:", error);
-                app.innerHTML = `
-                    <div class="error-state">
-                        <h2>Cihaz Bulunamadı</h2>
-                        <p>Bu cihaza ait bilgiler henüz senkronize edilmemiş veya silinmiş olabilir.</p>
-                    </div>
-                    ${openAppSection(deviceId)}
-                `;
-                wireOpenApp();
+                showMessage('Karekod Geçersiz', 'Lütfen güncel cihaz karekodunu okutun.');
+            } else if (BACKEND_URL && key) {
+                loadFromBackend(deviceId, key);
+            } else {
+                loadFromGithub(deviceId);
             }
         });
+
+        function showMessage(title, text, deviceId) {
+            app.innerHTML = `
+                <div class="error-state">
+                    <h2>${esc(title)}</h2>
+                    <p>${esc(text)}</p>
+                </div>
+                ${deviceId ? openAppSection(deviceId) : ''}
+            `;
+            wireOpenApp();
+        }
+
+        // --- Veri kaynakları -------------------------------------------------------------
+
+        async function callBackend(method, payload) {
+            let response;
+            if (method === 'GET') {
+                const url = new URL(BACKEND_URL);
+                Object.entries(payload).forEach(([name, value]) => url.searchParams.set(name, value));
+                response = await fetch(url, { cache: 'no-store' });
+            } else {
+                // text/plain: tarayıcı ön kontrol (preflight) isteği göndermesin.
+                response = await fetch(BACKEND_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload),
+                });
+            }
+            const data = await response.json();
+            if (!data.ok) {
+                const error = new Error(data.error || 'error');
+                error.code = data.error;
+                throw error;
+            }
+            return data;
+        }
+
+        async function loadFromBackend(deviceId, key) {
+            try {
+                const { device } = await callBackend('GET', { action: 'device', id: deviceId, k: key });
+                renderDevice(device, { deviceId, key, canRecord: true });
+            } catch (error) {
+                console.error('Backend error:', error);
+                if (error.code === 'forbidden') {
+                    showMessage('Karekod Geçersiz', 'Bu karekod eski ya da hatalı. Lütfen cihazın güncel karekodunu okutun.');
+                } else if (error.code === 'not_found') {
+                    showMessage('Cihaz Bulunamadı', 'Bu cihazın bilgileri henüz eşitlenmemiş. Homecare uygulamasını açıp bir kez eşitleyin.', deviceId);
+                } else {
+                    showMessage('Bağlantı Kurulamadı', 'Cihaz bilgileri alınamadı. İnternet bağlantınızı kontrol edip sayfayı yenileyin.', deviceId);
+                }
+            }
+        }
+
+        // Ara depo tanımlı değilse eski yöntem: GitHub'a yazılmış cihaz dosyası (yalnızca okunur).
+        async function loadFromGithub(deviceId) {
+            try {
+                const response = await fetch(`../data/device_${deviceId}.json?t=${new Date().getTime()}`);
+                if (!response.ok) throw new Error('Device not found');
+                renderDevice(await response.json(), { deviceId, canRecord: false });
+            } catch (error) {
+                console.error('Fetch error:', error);
+                if (BACKEND_URL) {
+                    // Ara depo kurulu ama karekodda anahtar yok: karekod, anahtar eklenmeden önce basılmış.
+                    showMessage('Karekod Eski', 'Bu karekodla web\'den bakım kaydı yapılamıyor. Homecare uygulamasından cihazın karekodunu yeniden yazdırıp yapıştırın.', deviceId);
+                } else {
+                    showMessage('Cihaz Bulunamadı', 'Bu cihaza ait bilgiler henüz senkronize edilmemiş veya silinmiş olabilir.', deviceId);
+                }
+            }
+        }
+
+        // --- Bu oturumda kaydedilen görevler (yeniden yüklemede tekrar kaydı önler) -------
+
+        function loadRecorded(deviceId) {
+            try {
+                return new Set(JSON.parse(sessionStorage.getItem(`homecare-recorded-${deviceId}`) || '[]'));
+            } catch (e) {
+                return new Set();
+            }
+        }
+
+        function saveRecorded(deviceId, ids) {
+            try {
+                sessionStorage.setItem(`homecare-recorded-${deviceId}`, JSON.stringify([...ids]));
+            } catch (e) { /* özel gezinti vb.: sorun değil */ }
+        }
+
+        // --- Görev durumu ----------------------------------------------------------------
+
+        function taskStatus(task) {
+            if (!task.lastCompletedAt) return { days: 0, text: 'Hiç yapılmadı', tone: 'due' };
+            const last = new Date(task.lastCompletedAt);
+            if (isNaN(last)) return { days: null, text: '', tone: '' };
+
+            const due = new Date(last.getTime() + Number(task.intervalDays) * 86400000);
+            const today = new Date();
+            const days = Math.round(
+                (new Date(due.getFullYear(), due.getMonth(), due.getDate())
+                    - new Date(today.getFullYear(), today.getMonth(), today.getDate())) / 86400000
+            );
+            if (days < 0) return { days, text: `${-days} gün gecikti`, tone: 'overdue' };
+            if (days === 0) return { days, text: 'Bugün', tone: 'due' };
+            return { days, text: `${days} gün sonra`, tone: days <= 14 ? 'soon' : 'ok' };
+        }
+
+        // --- Uygulamada aç ---------------------------------------------------------------
 
         // Uygulama yüklüyse bakımı doğrudan kaydeder. Yüklü olup olmadığı sayfadan bilinemez;
         // düğmeye basıldıktan sonra sayfa görünür kalırsa açıklama gösterilir.
         function openAppSection(deviceId) {
             return `
                 <div class="open-app">
-                    <a class="open-app-button" id="open-app" href="homecare://app/bakim/yapildi?cihaz=${deviceId}">Uygulamada bakımı kaydet</a>
+                    <a class="open-app-button" id="open-app" href="homecare://app/bakim/yapildi?cihaz=${deviceId}">Homecare uygulamasında kaydet</a>
                     <p class="open-app-hint" id="open-app-hint" hidden>Uygulama açılmadı. Homecare bu telefonda yüklü olmayabilir ya da bu cihaz başka bir telefonda kayıtlıdır.</p>
                 </div>
             `;
@@ -301,32 +499,62 @@
             });
         }
 
-        function renderDevice(device, deviceId) {
+        // --- Sayfa -----------------------------------------------------------------------
+
+        function renderDevice(device, ctx) {
             let purchaseDateStr = '-';
             if (device.purchaseDate) {
                 const date = new Date(device.purchaseDate);
-                purchaseDateStr = date.toLocaleDateString('tr-TR');
+                purchaseDateStr = isNaN(date) ? '-' : date.toLocaleDateString('tr-TR');
             }
 
+            const tasks = device.tasks || [];
+            const recorded = ctx.canRecord ? loadRecorded(ctx.deviceId) : new Set();
+
             let tasksHtml = '';
-            if (device.tasks && device.tasks.length > 0) {
+            if (tasks.length > 0 && ctx.canRecord) {
+                tasksHtml = `
+                    <div id="record-area">
+                        <div class="tasks-header">Hangi bakımı yaptınız?</div>
+                        <form id="record-form">
+                            <div class="task-list">
+                                ${tasks.map((t) => {
+                                    const status = taskStatus(t);
+                                    const done = recorded.has(String(t.id));
+                                    const checked = !done && status.days !== null && status.days <= 0;
+                                    return `
+                                        <label class="task-card selectable ${done ? 'done' : ''}">
+                                            <input type="checkbox" name="task" value="${Number(t.id)}" ${done ? 'disabled' : ''} ${checked ? 'checked' : ''}>
+                                            <span class="task-main">
+                                                <span class="task-name">${esc(t.name)}</span>
+                                                <span class="task-status ${done ? 'ok' : status.tone}">${done ? 'Az önce kaydedildi' : esc(status.text)}</span>
+                                            </span>
+                                            <span class="task-interval">${Number(t.intervalDays)} Gün</span>
+                                        </label>`;
+                                }).join('')}
+                            </div>
+                            <button type="submit" class="record-button" id="record-button" disabled>Bakımı Kaydet</button>
+                            <p class="form-error" id="record-error" role="alert" hidden></p>
+                        </form>
+                    </div>
+                `;
+            } else if (tasks.length > 0) {
                 tasksHtml = `
                     <div class="tasks-header">
                         <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-8 14H7v-2h4v2zm4-4H7v-2h8v2zm0-4H7V7h8v2z"/></svg>
                         Bakım Görevleri
                     </div>
                     <div class="task-list">
-                        ${device.tasks.map(t => `
+                        ${tasks.map((t) => `
                             <div class="task-card">
-                                <div class="task-name">${t.name}</div>
-                                <div class="task-interval">${t.intervalDays} Gün</div>
+                                <div class="task-name">${esc(t.name)}</div>
+                                <div class="task-interval">${Number(t.intervalDays)} Gün</div>
                             </div>
                         `).join('')}
                     </div>
                 `;
             }
 
-            const app = document.getElementById('app');
             app.innerHTML = `
                 <div class="header">
                     <div class="icon-wrapper">
@@ -334,35 +562,91 @@
                             <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/>
                         </svg>
                     </div>
-                    <h1 class="device-name">${device.name || 'İsimsiz Cihaz'}</h1>
-                    <p class="device-room">${device.room || 'Oda belirtilmemiş'}${device.category ? ' · ' + device.category : ''}</p>
+                    <h1 class="device-name">${esc(device.name || 'İsimsiz Cihaz')}</h1>
+                    <p class="device-room">${esc(device.room || 'Oda belirtilmemiş')}${device.category ? ' · ' + esc(device.category) : ''}</p>
                 </div>
 
                 <div class="info-group">
                     <div class="info-row">
                         <span class="info-label">Satın Alma</span>
-                        <span class="info-value">${purchaseDateStr}</span>
+                        <span class="info-value">${esc(purchaseDateStr)}</span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">Garanti</span>
-                        <span class="info-value">${device.warranty || 24} Ay</span>
+                        <span class="info-value">${esc(device.warranty || 24)} Ay</span>
                     </div>
                     ${device.serviceInfo ? `
                     <div class="info-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
                         <span class="info-label">Yetkili Servis</span>
-                        <span class="info-value" style="text-align: left; max-width: 100%;">${device.serviceInfo}</span>
+                        <span class="info-value" style="text-align: left; max-width: 100%;">${esc(device.serviceInfo)}</span>
                     </div>` : ''}
                     ${device.notes ? `
                     <div class="info-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
                         <span class="info-label">Notlar</span>
-                        <span class="info-value" style="text-align: left; max-width: 100%; color: var(--text-secondary); font-weight: 400;">${device.notes}</span>
+                        <span class="info-value" style="text-align: left; max-width: 100%; color: var(--text-secondary); font-weight: 400;">${esc(device.notes)}</span>
                     </div>` : ''}
                 </div>
 
                 ${tasksHtml}
-                ${openAppSection(deviceId)}
+                ${openAppSection(ctx.deviceId)}
             `;
             wireOpenApp();
+            if (ctx.canRecord && tasks.length > 0) wireRecordForm(device, ctx, recorded);
+        }
+
+        function wireRecordForm(device, ctx, recorded) {
+            const form = document.getElementById('record-form');
+            const button = document.getElementById('record-button');
+            const errorBox = document.getElementById('record-error');
+
+            const selected = () => [...form.querySelectorAll('input[name="task"]:checked')].map((i) => i.value);
+            const refresh = () => {
+                const count = selected().length;
+                button.disabled = count === 0;
+                button.textContent = count === 0 ? 'Görev seçin' : `Bakımı Kaydet (${count})`;
+            };
+            form.addEventListener('change', refresh);
+            refresh();
+
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const taskIds = selected();
+                if (taskIds.length === 0) return;
+
+                button.disabled = true;
+                button.textContent = 'Kaydediliyor...';
+                errorBox.hidden = true;
+
+                try {
+                    const result = await callBackend('POST', { action: 'record', id: ctx.deviceId, k: ctx.key, taskIds });
+                    taskIds.forEach((id) => recorded.add(id));
+                    saveRecorded(ctx.deviceId, recorded);
+                    showRecorded(device, ctx, result);
+                } catch (error) {
+                    console.error('Record error:', error);
+                    errorBox.textContent = error.code === 'forbidden'
+                        ? 'Karekod geçersiz ya da eski. Lütfen güncel karekodu okutun.'
+                        : 'Kayıt gönderilemedi. İnternet bağlantınızı kontrol edip tekrar deneyin.';
+                    errorBox.hidden = false;
+                    refresh();
+                }
+            });
+        }
+
+        function showRecorded(device, ctx, result) {
+            const names = (result.recorded || []).map((r) => `<p><strong>${esc(r.taskName)}</strong></p>`).join('');
+            const nothingNew = (result.recorded || []).length === 0;
+
+            document.getElementById('record-area').innerHTML = `
+                <div class="success-state">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M7.5 12.5l3 3 6-7"/></svg>
+                    <h2>${nothingNew ? 'Bu bakım az önce kaydedilmişti' : 'Bakım kaydedildi'}</h2>
+                    ${names}
+                    <p>Kayıt, Homecare uygulaması bir sonraki açıldığında telefona eklenecek.</p>
+                    <button type="button" class="secondary-button" id="record-again">Başka görev kaydet</button>
+                </div>
+            `;
+            document.getElementById('record-again').addEventListener('click', () => renderDevice(device, ctx));
         }
     </script>
 </body>

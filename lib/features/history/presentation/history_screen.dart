@@ -172,7 +172,22 @@ class _TimelineEntry extends StatelessWidget {
                         children: [
                           Text('${log.taskName} yapıldı', style: Theme.of(context).textTheme.titleMedium),
                           const SizedBox(height: 2),
-                          Text(log.deviceName, style: Theme.of(context).textTheme.bodySmall),
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(log.deviceName, style: Theme.of(context).textTheme.bodySmall),
+                              ),
+                              if (log.source == HistoryModel.sourceWeb) ...[
+                                const SizedBox(width: 8),
+                                const Icon(Icons.public, size: 14, color: AppTheme.infoWarranty),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Web\'den',
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.infoWarranty),
+                                ),
+                              ],
+                            ],
+                          ),
                         ],
                       ),
                     ),

@@ -9,11 +9,14 @@ import 'package:isar/isar.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
+import 'package:homecare/core/services/backend_service.dart';
 import 'package:homecare/data/local/isar_service.dart';
 import 'package:homecare/data/models/device_model.dart';
 import 'package:homecare/data/models/history_model.dart';
 import 'package:homecare/data/models/maintenance_receipt.dart';
 import 'package:homecare/data/models/task_model.dart';
+
+import 'support/fake_backend.dart';
 
 class _FakePathProvider extends PathProviderPlatform {
   final String documentsPath;
@@ -229,6 +232,165 @@ void main() {
 
       final imported = await deviceNamed('İçe Aktarılan');
       expect(imported.category, 'Filtre & Arıtma');
+    });
+
+    group('web kayıtları (ara depo)', () {
+      late FakeBackend backend;
+      late IsarService webService;
+
+      Future<void> configure({required bool enabled}) async {
+        final settings = await service.getSettings();
+        settings.backendUrl = enabled ? 'https://script.google.com/macros/s/abc/exec' : null;
+        settings.syncKey = enabled ? 'secret' : null;
+        await service.updateSettings(settings);
+      }
+
+      Map<String, dynamic> webRecord(String id, DeviceModel device, TaskModel task, DateTime at) => {
+            'recordId': id,
+            'deviceId': device.id,
+            'taskId': task.id,
+            'taskName': 'ara depodaki eski ad',
+            'recordedAt': at.toUtc().toIso8601String(),
+          };
+
+      setUp(() async {
+        backend = FakeBackend();
+        // Aynı Isar örneğini paylaşır; yalnızca ara depo istemcisi sahtedir.
+        webService = IsarService(backend: BackendService(client: backend.client));
+        await configure(enabled: true);
+      });
+
+      tearDown(() => configure(enabled: false));
+
+      test('bekleyen kayıtları telefona alır, onaylar ve güncel cihazları gönderir', () async {
+        final epson = await deviceNamed('Epson Yazıcı');
+        final task = epson.tasks.firstWhere((t) => t.name == 'Kartuş kafası hizalama');
+        final recordedAt = DateTime.now().add(const Duration(minutes: 1));
+        backend.pending.addAll([
+          webRecord('r1', epson, task, recordedAt),
+          {'recordId': 'r2', 'deviceId': 999999, 'taskId': 1, 'taskName': 'silinmiş', 'recordedAt': recordedAt.toUtc().toIso8601String()},
+        ]);
+
+        final result = (await webService.syncWithBackend())!;
+
+        expect(result.imported, 1);
+        expect(result.unmatched, 1, reason: 'cihazı olmayan kayıt atlanır');
+        expect(result.pushError, isNull);
+
+        final history = await isar.historyModels.filter().externalIdEqualTo('r1').findAll();
+        expect(history, hasLength(1));
+        expect(history.single.source, 'web');
+        expect(history.single.deviceId, epson.id);
+        expect(history.single.deviceName, 'Epson Yazıcı');
+        expect(history.single.taskName, 'Kartuş kafası hizalama', reason: 'ad ara depodan değil telefondan gelir');
+        expect(history.single.completedAt.isAtSameMomentAs(recordedAt), isTrue);
+        expect(await isar.historyModels.filter().externalIdEqualTo('r2').findAll(), isEmpty);
+
+        final updated = (await isar.taskModels.get(task.id))!;
+        expect(updated.lastCompletedAt!.isAtSameMomentAs(recordedAt), isTrue);
+
+        expect(backend.acknowledged, unorderedEquals(['r1', 'r2']), reason: 'karşılığı olmayan kayıt da onaylanır');
+
+        final pushed = backend.lastPushed(epson.id)!;
+        final pushedTask = (pushed['tasks'] as List).cast<Map<String, dynamic>>().firstWhere((t) => t['id'] == task.id);
+        expect(DateTime.parse(pushedTask['lastCompletedAt'] as String).isAtSameMomentAs(recordedAt), isTrue,
+            reason: 'web sayfası güncel bakım tarihini görmeli');
+        expect(result.pushedDevices, greaterThanOrEqualTo(5));
+      });
+
+      test('onayı gidememiş kayıt ikinci eşitlemede tekrar eklenmez', () async {
+        final oralB = await deviceNamed('Oral-B Şarjlı Diş Fırçası');
+        backend.dropAcknowledgements = true;
+        backend.pending.add(webRecord('dup1', oralB, oralB.tasks.single, DateTime.now()));
+
+        final first = (await webService.syncWithBackend())!;
+        final second = (await webService.syncWithBackend())!;
+
+        expect(first.imported, 1);
+        expect(second.imported, 0);
+        expect(second.unmatched, 0);
+        expect(await isar.historyModels.filter().externalIdEqualTo('dup1').findAll(), hasLength(1));
+      });
+
+      test('telefondaki daha yeni bakım tarihini eski web kaydıyla geri almaz', () async {
+        final daikin = await deviceNamed('Daikin Klima');
+        final task = daikin.tasks.single;
+        final newer = DateTime.now();
+        await setLastCompleted(task, newer);
+        backend.pending.add(webRecord('old1', daikin, task, newer.subtract(const Duration(days: 3))));
+
+        final result = (await webService.syncWithBackend())!;
+
+        expect(result.imported, 1, reason: 'geçmişe yine de eklenir');
+        expect((await isar.taskModels.get(task.id))!.lastCompletedAt!.isAtSameMomentAs(newer), isTrue);
+      });
+
+      test('ara depo kurulu değilse hiçbir istek atılmaz', () async {
+        await configure(enabled: false);
+
+        expect(await webService.syncWithBackend(), isNull);
+        expect(backend.requests, isEmpty);
+      });
+
+      test('kayıtlar çekilemezse hata verir; hiçbir şey eklenmez ya da onaylanmaz', () async {
+        final epson = await deviceNamed('Epson Yazıcı');
+        backend.failPull = true;
+        backend.pending.add(webRecord('fail1', epson, epson.tasks.first, DateTime.now()));
+
+        await expectLater(webService.syncWithBackend(), throwsA(isA<BackendException>()));
+
+        expect(backend.acknowledged, isEmpty);
+        expect(await isar.historyModels.filter().externalIdEqualTo('fail1').findAll(), isEmpty);
+      });
+
+      test('cihazlar gönderilemese de alınan kayıtlar korunur ve onaylanır', () async {
+        final epson = await deviceNamed('Epson Yazıcı');
+        backend.failPush = true;
+        backend.pending.add(webRecord('keep1', epson, epson.tasks.first, DateTime.now().add(const Duration(minutes: 2))));
+
+        final result = (await webService.syncWithBackend())!;
+
+        expect(result.imported, 1);
+        expect(result.pushedDevices, 0);
+        expect(result.pushError, isNotNull);
+        expect(backend.acknowledged, contains('keep1'));
+      });
+
+      test('cihaz kaydedilince ve silinince ara depo güncellenir', () async {
+        final device = DeviceModel()
+          ..name = 'Web Test Cihazı'
+          ..room = 'Salon'
+          ..category = 'Diğer';
+        final task = TaskModel()
+          ..name = 'Filtre'
+          ..intervalDays = 30
+          ..lastCompletedAt = DateTime.now();
+
+        await webService.saveDeviceWithTasks(device, [task]);
+        await eventually(() => backend.lastPushed(device.id) != null);
+
+        final pushed = backend.lastPushed(device.id)!;
+        expect(pushed['name'], 'Web Test Cihazı');
+        expect(pushed['category'], 'Diğer');
+        expect((pushed['tasks'] as List).single['id'], task.id, reason: 'web sayfası göreve bu numarayla kayıt bırakır');
+
+        await webService.deleteDevice(device.id);
+        await eventually(() => backend.deletedDevices.contains(device.id));
+      });
+
+      test('uygulama içi bakım kaydı güncel tarihi ara depoya gönderir', () async {
+        final xiaomi = await deviceNamed('Xiaomi Mop Pro Robot Süpürge');
+        final task = xiaomi.tasks.first;
+        final startedAt = DateTime.now();
+
+        await webService.recordSelectedTasks(xiaomi.id, {task.id});
+        await eventually(() => backend.lastPushed(xiaomi.id) != null);
+
+        final pushedTask = (backend.lastPushed(xiaomi.id)!['tasks'] as List)
+            .cast<Map<String, dynamic>>()
+            .firstWhere((t) => t['id'] == task.id);
+        expect(DateTime.parse(pushedTask['lastCompletedAt'] as String).isBefore(startedAt), isFalse);
+      });
     });
   });
 }

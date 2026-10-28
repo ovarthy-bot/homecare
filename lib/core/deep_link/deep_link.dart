@@ -26,8 +26,13 @@ class DeepLink {
   static const String webHost = 'ovarthy-bot.github.io';
 
   /// Karekoda yazılan adres. Uygulaması olmayan telefonda da cihaz sayfası açılır.
-  static String qrData(int deviceId) =>
-      'https://$webHost/homecare/device/index.html?id=$deviceId';
+  ///
+  /// [key] ara depo kuruluysa o cihaza özel anahtardır (`BackendService.deviceKey`); sayfa bununla
+  /// cihaz bilgisini okur ve bakım kaydı bırakır. Anahtarsız karekod yalnızca bilgi gösterir.
+  static String qrData(int deviceId, {String? key}) {
+    final base = 'https://$webHost/homecare/device/index.html?id=$deviceId';
+    return key == null ? base : '$base&k=$key';
+  }
 
   /// Uygulamayı doğrudan açıp bakımı kaydeden bağlantı (cihaz sayfasındaki düğme kullanır).
   static String maintenanceDoneLink(int deviceId) =>

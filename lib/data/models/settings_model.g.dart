@@ -17,20 +17,30 @@ const SettingsModelSchema = CollectionSchema(
   name: r'SettingsModel',
   id: 4013777327486952906,
   properties: {
-    r'defaultReminderDays': PropertySchema(
+    r'backendUrl': PropertySchema(
       id: 0,
+      name: r'backendUrl',
+      type: IsarType.string,
+    ),
+    r'defaultReminderDays': PropertySchema(
+      id: 1,
       name: r'defaultReminderDays',
       type: IsarType.long,
     ),
     r'githubToken': PropertySchema(
-      id: 1,
+      id: 2,
       name: r'githubToken',
       type: IsarType.string,
     ),
     r'notificationsEnabled': PropertySchema(
-      id: 2,
+      id: 3,
       name: r'notificationsEnabled',
       type: IsarType.bool,
+    ),
+    r'syncKey': PropertySchema(
+      id: 4,
+      name: r'syncKey',
+      type: IsarType.string,
     )
   },
   estimateSize: _settingsModelEstimateSize,
@@ -54,7 +64,19 @@ int _settingsModelEstimateSize(
 ) {
   var bytesCount = offsets.last;
   {
+    final value = object.backendUrl;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
     final value = object.githubToken;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
+    final value = object.syncKey;
     if (value != null) {
       bytesCount += 3 + value.length * 3;
     }
@@ -68,9 +90,11 @@ void _settingsModelSerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeLong(offsets[0], object.defaultReminderDays);
-  writer.writeString(offsets[1], object.githubToken);
-  writer.writeBool(offsets[2], object.notificationsEnabled);
+  writer.writeString(offsets[0], object.backendUrl);
+  writer.writeLong(offsets[1], object.defaultReminderDays);
+  writer.writeString(offsets[2], object.githubToken);
+  writer.writeBool(offsets[3], object.notificationsEnabled);
+  writer.writeString(offsets[4], object.syncKey);
 }
 
 SettingsModel _settingsModelDeserialize(
@@ -80,10 +104,12 @@ SettingsModel _settingsModelDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = SettingsModel();
-  object.defaultReminderDays = reader.readLong(offsets[0]);
-  object.githubToken = reader.readStringOrNull(offsets[1]);
+  object.backendUrl = reader.readStringOrNull(offsets[0]);
+  object.defaultReminderDays = reader.readLong(offsets[1]);
+  object.githubToken = reader.readStringOrNull(offsets[2]);
   object.id = id;
-  object.notificationsEnabled = reader.readBool(offsets[2]);
+  object.notificationsEnabled = reader.readBool(offsets[3]);
+  object.syncKey = reader.readStringOrNull(offsets[4]);
   return object;
 }
 
@@ -95,11 +121,15 @@ P _settingsModelDeserializeProp<P>(
 ) {
   switch (propertyId) {
     case 0:
-      return (reader.readLong(offset)) as P;
-    case 1:
       return (reader.readStringOrNull(offset)) as P;
+    case 1:
+      return (reader.readLong(offset)) as P;
     case 2:
+      return (reader.readStringOrNull(offset)) as P;
+    case 3:
       return (reader.readBool(offset)) as P;
+    case 4:
+      return (reader.readStringOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
@@ -201,6 +231,160 @@ extension SettingsModelQueryWhere
 
 extension SettingsModelQueryFilter
     on QueryBuilder<SettingsModel, SettingsModel, QFilterCondition> {
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      backendUrlIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'backendUrl',
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      backendUrlIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'backendUrl',
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      backendUrlEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'backendUrl',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      backendUrlGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'backendUrl',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      backendUrlLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'backendUrl',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      backendUrlBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'backendUrl',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      backendUrlStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'backendUrl',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      backendUrlEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'backendUrl',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      backendUrlContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'backendUrl',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      backendUrlMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'backendUrl',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      backendUrlIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'backendUrl',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      backendUrlIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'backendUrl',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
       defaultReminderDaysEqualTo(int value) {
     return QueryBuilder.apply(this, (query) {
@@ -474,6 +658,160 @@ extension SettingsModelQueryFilter
       ));
     });
   }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      syncKeyIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'syncKey',
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      syncKeyIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'syncKey',
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      syncKeyEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'syncKey',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      syncKeyGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'syncKey',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      syncKeyLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'syncKey',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      syncKeyBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'syncKey',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      syncKeyStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'syncKey',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      syncKeyEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'syncKey',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      syncKeyContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'syncKey',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      syncKeyMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'syncKey',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      syncKeyIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'syncKey',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterFilterCondition>
+      syncKeyIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'syncKey',
+        value: '',
+      ));
+    });
+  }
 }
 
 extension SettingsModelQueryObject
@@ -484,6 +822,19 @@ extension SettingsModelQueryLinks
 
 extension SettingsModelQuerySortBy
     on QueryBuilder<SettingsModel, SettingsModel, QSortBy> {
+  QueryBuilder<SettingsModel, SettingsModel, QAfterSortBy> sortByBackendUrl() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'backendUrl', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterSortBy>
+      sortByBackendUrlDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'backendUrl', Sort.desc);
+    });
+  }
+
   QueryBuilder<SettingsModel, SettingsModel, QAfterSortBy>
       sortByDefaultReminderDays() {
     return QueryBuilder.apply(this, (query) {
@@ -524,10 +875,35 @@ extension SettingsModelQuerySortBy
       return query.addSortBy(r'notificationsEnabled', Sort.desc);
     });
   }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterSortBy> sortBySyncKey() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncKey', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterSortBy> sortBySyncKeyDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncKey', Sort.desc);
+    });
+  }
 }
 
 extension SettingsModelQuerySortThenBy
     on QueryBuilder<SettingsModel, SettingsModel, QSortThenBy> {
+  QueryBuilder<SettingsModel, SettingsModel, QAfterSortBy> thenByBackendUrl() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'backendUrl', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterSortBy>
+      thenByBackendUrlDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'backendUrl', Sort.desc);
+    });
+  }
+
   QueryBuilder<SettingsModel, SettingsModel, QAfterSortBy>
       thenByDefaultReminderDays() {
     return QueryBuilder.apply(this, (query) {
@@ -580,10 +956,29 @@ extension SettingsModelQuerySortThenBy
       return query.addSortBy(r'notificationsEnabled', Sort.desc);
     });
   }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterSortBy> thenBySyncKey() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncKey', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SettingsModel, SettingsModel, QAfterSortBy> thenBySyncKeyDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncKey', Sort.desc);
+    });
+  }
 }
 
 extension SettingsModelQueryWhereDistinct
     on QueryBuilder<SettingsModel, SettingsModel, QDistinct> {
+  QueryBuilder<SettingsModel, SettingsModel, QDistinct> distinctByBackendUrl(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'backendUrl', caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<SettingsModel, SettingsModel, QDistinct>
       distinctByDefaultReminderDays() {
     return QueryBuilder.apply(this, (query) {
@@ -604,6 +999,13 @@ extension SettingsModelQueryWhereDistinct
       return query.addDistinctBy(r'notificationsEnabled');
     });
   }
+
+  QueryBuilder<SettingsModel, SettingsModel, QDistinct> distinctBySyncKey(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'syncKey', caseSensitive: caseSensitive);
+    });
+  }
 }
 
 extension SettingsModelQueryProperty
@@ -611,6 +1013,12 @@ extension SettingsModelQueryProperty
   QueryBuilder<SettingsModel, int, QQueryOperations> idProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'id');
+    });
+  }
+
+  QueryBuilder<SettingsModel, String?, QQueryOperations> backendUrlProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'backendUrl');
     });
   }
 
@@ -631,6 +1039,12 @@ extension SettingsModelQueryProperty
       notificationsEnabledProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'notificationsEnabled');
+    });
+  }
+
+  QueryBuilder<SettingsModel, String?, QQueryOperations> syncKeyProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'syncKey');
     });
   }
 }
