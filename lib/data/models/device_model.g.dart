@@ -17,38 +17,43 @@ const DeviceModelSchema = CollectionSchema(
   name: r'DeviceModel',
   id: 72027435546674284,
   properties: {
-    r'imagePath': PropertySchema(
+    r'category': PropertySchema(
       id: 0,
+      name: r'category',
+      type: IsarType.string,
+    ),
+    r'imagePath': PropertySchema(
+      id: 1,
       name: r'imagePath',
       type: IsarType.string,
     ),
     r'name': PropertySchema(
-      id: 1,
+      id: 2,
       name: r'name',
       type: IsarType.string,
     ),
     r'notes': PropertySchema(
-      id: 2,
+      id: 3,
       name: r'notes',
       type: IsarType.string,
     ),
     r'purchaseDate': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'purchaseDate',
       type: IsarType.dateTime,
     ),
     r'room': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'room',
       type: IsarType.string,
     ),
     r'serviceInfo': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'serviceInfo',
       type: IsarType.string,
     ),
     r'warrantyMonths': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'warrantyMonths',
       type: IsarType.long,
     )
@@ -82,6 +87,12 @@ int _deviceModelEstimateSize(
 ) {
   var bytesCount = offsets.last;
   {
+    final value = object.category;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
     final value = object.imagePath;
     if (value != null) {
       bytesCount += 3 + value.length * 3;
@@ -110,13 +121,14 @@ void _deviceModelSerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeString(offsets[0], object.imagePath);
-  writer.writeString(offsets[1], object.name);
-  writer.writeString(offsets[2], object.notes);
-  writer.writeDateTime(offsets[3], object.purchaseDate);
-  writer.writeString(offsets[4], object.room);
-  writer.writeString(offsets[5], object.serviceInfo);
-  writer.writeLong(offsets[6], object.warrantyMonths);
+  writer.writeString(offsets[0], object.category);
+  writer.writeString(offsets[1], object.imagePath);
+  writer.writeString(offsets[2], object.name);
+  writer.writeString(offsets[3], object.notes);
+  writer.writeDateTime(offsets[4], object.purchaseDate);
+  writer.writeString(offsets[5], object.room);
+  writer.writeString(offsets[6], object.serviceInfo);
+  writer.writeLong(offsets[7], object.warrantyMonths);
 }
 
 DeviceModel _deviceModelDeserialize(
@@ -126,14 +138,15 @@ DeviceModel _deviceModelDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = DeviceModel();
+  object.category = reader.readStringOrNull(offsets[0]);
   object.id = id;
-  object.imagePath = reader.readStringOrNull(offsets[0]);
-  object.name = reader.readString(offsets[1]);
-  object.notes = reader.readStringOrNull(offsets[2]);
-  object.purchaseDate = reader.readDateTimeOrNull(offsets[3]);
-  object.room = reader.readString(offsets[4]);
-  object.serviceInfo = reader.readStringOrNull(offsets[5]);
-  object.warrantyMonths = reader.readLong(offsets[6]);
+  object.imagePath = reader.readStringOrNull(offsets[1]);
+  object.name = reader.readString(offsets[2]);
+  object.notes = reader.readStringOrNull(offsets[3]);
+  object.purchaseDate = reader.readDateTimeOrNull(offsets[4]);
+  object.room = reader.readString(offsets[5]);
+  object.serviceInfo = reader.readStringOrNull(offsets[6]);
+  object.warrantyMonths = reader.readLong(offsets[7]);
   return object;
 }
 
@@ -147,16 +160,18 @@ P _deviceModelDeserializeProp<P>(
     case 0:
       return (reader.readStringOrNull(offset)) as P;
     case 1:
-      return (reader.readString(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 2:
-      return (reader.readStringOrNull(offset)) as P;
-    case 3:
-      return (reader.readDateTimeOrNull(offset)) as P;
-    case 4:
       return (reader.readString(offset)) as P;
-    case 5:
+    case 3:
       return (reader.readStringOrNull(offset)) as P;
+    case 4:
+      return (reader.readDateTimeOrNull(offset)) as P;
+    case 5:
+      return (reader.readString(offset)) as P;
     case 6:
+      return (reader.readStringOrNull(offset)) as P;
+    case 7:
       return (reader.readLong(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -257,6 +272,159 @@ extension DeviceModelQueryWhere
 
 extension DeviceModelQueryFilter
     on QueryBuilder<DeviceModel, DeviceModel, QFilterCondition> {
+  QueryBuilder<DeviceModel, DeviceModel, QAfterFilterCondition>
+      categoryIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'category',
+      ));
+    });
+  }
+
+  QueryBuilder<DeviceModel, DeviceModel, QAfterFilterCondition>
+      categoryIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'category',
+      ));
+    });
+  }
+
+  QueryBuilder<DeviceModel, DeviceModel, QAfterFilterCondition> categoryEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'category',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<DeviceModel, DeviceModel, QAfterFilterCondition>
+      categoryGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'category',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<DeviceModel, DeviceModel, QAfterFilterCondition>
+      categoryLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'category',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<DeviceModel, DeviceModel, QAfterFilterCondition> categoryBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'category',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<DeviceModel, DeviceModel, QAfterFilterCondition>
+      categoryStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'category',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<DeviceModel, DeviceModel, QAfterFilterCondition>
+      categoryEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'category',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<DeviceModel, DeviceModel, QAfterFilterCondition>
+      categoryContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'category',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<DeviceModel, DeviceModel, QAfterFilterCondition> categoryMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'category',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<DeviceModel, DeviceModel, QAfterFilterCondition>
+      categoryIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'category',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<DeviceModel, DeviceModel, QAfterFilterCondition>
+      categoryIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'category',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<DeviceModel, DeviceModel, QAfterFilterCondition> idEqualTo(
       Id value) {
     return QueryBuilder.apply(this, (query) {
@@ -1228,6 +1396,18 @@ extension DeviceModelQueryLinks
 
 extension DeviceModelQuerySortBy
     on QueryBuilder<DeviceModel, DeviceModel, QSortBy> {
+  QueryBuilder<DeviceModel, DeviceModel, QAfterSortBy> sortByCategory() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'category', Sort.asc);
+    });
+  }
+
+  QueryBuilder<DeviceModel, DeviceModel, QAfterSortBy> sortByCategoryDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'category', Sort.desc);
+    });
+  }
+
   QueryBuilder<DeviceModel, DeviceModel, QAfterSortBy> sortByImagePath() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'imagePath', Sort.asc);
@@ -1317,6 +1497,18 @@ extension DeviceModelQuerySortBy
 
 extension DeviceModelQuerySortThenBy
     on QueryBuilder<DeviceModel, DeviceModel, QSortThenBy> {
+  QueryBuilder<DeviceModel, DeviceModel, QAfterSortBy> thenByCategory() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'category', Sort.asc);
+    });
+  }
+
+  QueryBuilder<DeviceModel, DeviceModel, QAfterSortBy> thenByCategoryDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'category', Sort.desc);
+    });
+  }
+
   QueryBuilder<DeviceModel, DeviceModel, QAfterSortBy> thenById() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.asc);
@@ -1418,6 +1610,13 @@ extension DeviceModelQuerySortThenBy
 
 extension DeviceModelQueryWhereDistinct
     on QueryBuilder<DeviceModel, DeviceModel, QDistinct> {
+  QueryBuilder<DeviceModel, DeviceModel, QDistinct> distinctByCategory(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'category', caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<DeviceModel, DeviceModel, QDistinct> distinctByImagePath(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -1471,6 +1670,12 @@ extension DeviceModelQueryProperty
   QueryBuilder<DeviceModel, int, QQueryOperations> idProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'id');
+    });
+  }
+
+  QueryBuilder<DeviceModel, String?, QQueryOperations> categoryProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'category');
     });
   }
 

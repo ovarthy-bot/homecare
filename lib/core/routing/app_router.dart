@@ -10,6 +10,8 @@ import '../../features/main/presentation/main_screen.dart';
 import '../../features/devices/presentation/device_detail_screen.dart';
 import '../../features/devices/presentation/add_edit_device_screen.dart';
 import '../../features/devices/presentation/qr_scanner_screen.dart';
+import '../../features/maintenance/presentation/maintenance_done_screen.dart';
+import '../deep_link/deep_link.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
@@ -17,6 +19,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/',
+    // Uygulama içi gezinme şemasızdır; şema taşıyan adres telefonun kamerasından,
+    // bir App Link'ten ya da başka bir uygulamadan gelmiştir.
+    redirect: (context, state) {
+      if (!state.uri.hasScheme) return null;
+      return DeepLink.parseUri(state.uri)?.location ?? '/';
+    },
+    onException: (context, state, router) => router.go('/'),
     routes: [
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
@@ -77,6 +86,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final id = int.parse(state.pathParameters['id']!);
           return AddEditDeviceScreen(deviceId: id);
         },
+      ),
+      GoRoute(
+        path: '/bakim/yapildi',
+        parentNavigatorKey: _rootNavigatorKey,
+        redirect: (context, state) {
+          final id = int.tryParse(state.uri.queryParameters['cihaz'] ?? '');
+          return id != null && id > 0 ? null : '/';
+        },
+        builder: (context, state) => MaintenanceDoneScreen(
+          deviceId: int.parse(state.uri.queryParameters['cihaz']!),
+        ),
       ),
       GoRoute(
         path: '/scanner',

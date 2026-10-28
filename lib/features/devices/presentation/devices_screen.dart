@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../dashboard/presentation/providers/dashboard_providers.dart';
+import '../../../data/models/device_categories.dart';
 import '../../../data/models/device_model.dart';
 
 class DevicesScreen extends ConsumerStatefulWidget {
@@ -14,6 +15,7 @@ class DevicesScreen extends ConsumerStatefulWidget {
 
 class _DevicesScreenState extends ConsumerState<DevicesScreen> {
   String _searchQuery = '';
+  String? _selectedCategory;
 
   final List<String> _filters = [
     'Tümü',
@@ -28,11 +30,21 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
     final devicesAsyncValue = ref.watch(devicesProvider);
     final selectedFilter = ref.watch(deviceFilterProvider);
 
+    // Yalnızca en az bir cihazın kullandığı kategoriler listelenir.
+    final categories = (devicesAsyncValue.value ?? const <DeviceModel>[])
+        .map((d) => d.category)
+        .whereType<String>()
+        .where((c) => c.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    final activeCategory = categories.contains(_selectedCategory) ? _selectedCategory : null;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Cihazlar'),
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(110),
+          preferredSize: Size.fromHeight(categories.isEmpty ? 110 : 158),
           child: Column(
             children: [
               Padding(
@@ -79,6 +91,30 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
                   }).toList(),
                 ),
               ),
+              if (categories.isNotEmpty)
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 4.0,
+                  ),
+                  child: Row(
+                    children: [
+                      for (final category in [null, ...categories])
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: ChoiceChip(
+                            avatar: category == null
+                                ? null
+                                : Icon(DeviceCategories.iconFor(category), size: 18),
+                            label: Text(category ?? 'Tüm Kategoriler'),
+                            selected: activeCategory == category,
+                            onSelected: (_) => setState(() => _selectedCategory = category),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
             ],
           ),
         ),
@@ -88,6 +124,9 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
           final filteredDevices = devices.where((d) {
             if (_searchQuery.isNotEmpty &&
                 !d.name.toLowerCase().contains(_searchQuery)) {
+              return false;
+            }
+            if (activeCategory != null && d.category != activeCategory) {
               return false;
             }
             if (selectedFilter == 'Tümü') return true;
@@ -158,10 +197,14 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
                             ).colorScheme.surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(Icons.devices, color: Colors.grey),
+                          child: Icon(DeviceCategories.iconFor(device.category), color: Colors.grey),
                         ),
                   title: Text(device.name),
-                  subtitle: Text(device.room),
+                  subtitle: Text(
+                    device.category == null || device.category!.isEmpty
+                        ? device.room
+                        : '${device.room} · ${device.category}',
+                  ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
                     context.push('/device/${device.id}');

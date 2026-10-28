@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../data/models/device_categories.dart';
 import '../../../data/models/device_model.dart';
 import '../../../data/models/task_model.dart';
 import '../../dashboard/presentation/providers/dashboard_providers.dart';
@@ -26,7 +27,8 @@ class _AddEditDeviceScreenState extends ConsumerState<AddEditDeviceScreen> {
   late TextEditingController _warrantyController;
   DateTime? _purchaseDate;
   String? _imagePath;
-  
+  String? _category;
+
   List<TaskModel> _tasks = [];
   DeviceModel? _existingDevice;
   bool _isLoading = true;
@@ -49,6 +51,7 @@ class _AddEditDeviceScreenState extends ConsumerState<AddEditDeviceScreen> {
       if (_existingDevice != null) {
         _nameController.text = _existingDevice!.name;
         _roomController.text = _existingDevice!.room;
+        _category = _existingDevice!.category;
         _notesController.text = _existingDevice!.notes ?? '';
         _serviceInfoController.text = _existingDevice!.serviceInfo ?? '';
         _warrantyController.text = _existingDevice!.warrantyMonths.toString();
@@ -92,6 +95,7 @@ class _AddEditDeviceScreenState extends ConsumerState<AddEditDeviceScreen> {
         final device = _existingDevice ?? DeviceModel();
         device.name = _nameController.text.trim();
         device.room = _roomController.text.trim();
+        device.category = _category;
         device.notes = _notesController.text.trim();
         device.serviceInfo = _serviceInfoController.text.trim();
         device.warrantyMonths = int.tryParse(_warrantyController.text) ?? 24;
@@ -218,6 +222,28 @@ class _AddEditDeviceScreenState extends ConsumerState<AddEditDeviceScreen> {
               controller: _roomController,
               decoration: const InputDecoration(labelText: 'Bulunduğu Oda'),
               validator: (val) => val == null || val.isEmpty ? 'Gerekli alan' : null,
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              initialValue: _category,
+              decoration: const InputDecoration(labelText: 'Kategori'),
+              items: [
+                // Eski ya da içe aktarılmış, listede olmayan bir kategori kaybolmasın.
+                if (_category != null && !DeviceCategories.all.any((c) => c.label == _category))
+                  DropdownMenuItem(value: _category, child: Text(_category!)),
+                for (final category in DeviceCategories.all)
+                  DropdownMenuItem(
+                    value: category.label,
+                    child: Row(
+                      children: [
+                        Icon(category.icon, size: 20),
+                        const SizedBox(width: 12),
+                        Text(category.label),
+                      ],
+                    ),
+                  ),
+              ],
+              onChanged: (val) => setState(() => _category = val),
             ),
             const SizedBox(height: 16),
             Row(

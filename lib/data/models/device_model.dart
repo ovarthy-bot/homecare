@@ -9,7 +9,8 @@ class DeviceModel {
 
   late String name;
   late String room;
-  
+  String? category;
+
   String? notes;
   String? serviceInfo;
   DateTime? purchaseDate;

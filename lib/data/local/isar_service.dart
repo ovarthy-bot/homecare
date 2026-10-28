@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/device_model.dart';
 import '../models/task_model.dart';
 import '../models/history_model.dart';
 import '../models/settings_model.dart';
+import '../models/maintenance_receipt.dart';
+import '../models/device_categories.dart';
 import 'dart:convert';
 import 'package:share_plus/share_plus.dart';
 import 'dart:io';
@@ -49,7 +52,8 @@ class IsarService {
       // 1. Epson Yazıcı
       final epson = DeviceModel()
         ..name = 'Epson Yazıcı'
-        ..room = 'Çalışma Odası';
+        ..room = 'Çalışma Odası'
+        ..category = DeviceCategories.electronics.label;
       
       final epsonTasks = [
         TaskModel()..name = 'Yazıcı kartuş temizleme'..intervalDays = 30..lastCompletedAt = DateTime.now(),
@@ -59,7 +63,8 @@ class IsarService {
       // 2. Philips Kahve Makinesi
       final philips = DeviceModel()
         ..name = 'Philips Kahve Makinesi'
-        ..room = 'Mutfak';
+        ..room = 'Mutfak'
+        ..category = DeviceCategories.kitchen.label;
       
       final philipsTasks = [
         TaskModel()..name = 'Çöp haznesi temizliği'..intervalDays = 7..lastCompletedAt = DateTime.now(),
@@ -70,7 +75,8 @@ class IsarService {
       // 3. Xiaomi Mop Pro
       final xiaomi = DeviceModel()
         ..name = 'Xiaomi Mop Pro Robot Süpürge'
-        ..room = 'Salon';
+        ..room = 'Salon'
+        ..category = DeviceCategories.cleaning.label;
       
       final xiaomiTasks = [
         TaskModel()..name = 'Ana fırça temizliği'..intervalDays = 14..lastCompletedAt = DateTime.now(),
@@ -80,7 +86,8 @@ class IsarService {
       // 4. Daikin Klima
       final daikin = DeviceModel()
         ..name = 'Daikin Klima'
-        ..room = 'Salon';
+        ..room = 'Salon'
+        ..category = DeviceCategories.climate.label;
       
       final daikinTasks = [
         TaskModel()..name = 'Filtre temizliği'..intervalDays = 30..lastCompletedAt = DateTime.now(),
@@ -89,7 +96,8 @@ class IsarService {
       // 5. Oral-B
       final oralB = DeviceModel()
         ..name = 'Oral-B Şarjlı Diş Fırçası'
-        ..room = 'Banyo';
+        ..room = 'Banyo'
+        ..category = DeviceCategories.personalCare.label;
       
       final oralBTasks = [
         TaskModel()..name = 'Fırça başlığı değişimi'..intervalDays = 90..lastCompletedAt = DateTime.now(),
@@ -114,14 +122,42 @@ class IsarService {
     });
   }
 
-  Stream<List<DeviceModel>> listenToDevices() async* {
-    final isar = await db;
-    await for (final devices in isar.deviceModels.where().watch(fireImmediately: true)) {
+  /// Cihaz ya da görev değiştiğinde (ör. karekodla bakım kaydı) görevleri yüklü cihaz listesini yeniden yayar.
+  Stream<List<DeviceModel>> listenToDevices() {
+    late final StreamController<List<DeviceModel>> controller;
+    final subscriptions = <StreamSubscription<void>>[];
+    // Üst üste gelen değişiklikler sırayla işlenir; eski sonuç yenisinin önüne geçmez.
+    var pending = Future<void>.value();
+
+    Future<void> emitDevices(Isar isar) async {
+      final devices = await isar.deviceModels.where().findAll();
       for (final device in devices) {
         await device.tasks.load();
       }
-      yield devices;
+      if (controller.hasListener) controller.add(devices);
     }
+
+    controller = StreamController<List<DeviceModel>>(
+      onListen: () async {
+        final isar = await db;
+        if (!controller.hasListener) return;
+
+        void onChange(void _) {
+          pending = pending.then((_) => emitDevices(isar)).catchError((Object e, StackTrace st) {
+            if (controller.hasListener) controller.addError(e, st);
+          });
+        }
+
+        subscriptions.add(isar.deviceModels.watchLazy(fireImmediately: true).listen(onChange));
+        subscriptions.add(isar.taskModels.watchLazy().listen(onChange));
+      },
+      onCancel: () async {
+        for (final subscription in subscriptions) {
+          await subscription.cancel();
+        }
+      },
+    );
+    return controller.stream;
   }
 
   Future<List<DeviceModel>> getDevices() async {
@@ -154,17 +190,7 @@ class IsarService {
         device.tasks.add(task);
 
         // Bildirim ayarla
-        if (settings.notificationsEnabled && task.nextDueDate.isAfter(DateTime.now())) {
-          final reminderDate = task.nextDueDate.subtract(Duration(days: settings.defaultReminderDays));
-          if (reminderDate.isAfter(DateTime.now())) {
-            await NotificationService().scheduleMaintenanceReminder(
-              task.id,
-              'Bakım Hatırlatması',
-              '${device.name} için ${task.name} vakti yaklaştı.',
-              reminderDate,
-            );
-          }
-        }
+        await _scheduleReminder(device, task, settings);
       }
       
       await device.tasks.save();
@@ -172,6 +198,33 @@ class IsarService {
       // Sync to GitHub
       _githubService.syncDeviceToGithub(device, settings);
     });
+  }
+
+  Future<void> _scheduleReminder(DeviceModel device, TaskModel task, SettingsModel settings) async {
+    if (!settings.notificationsEnabled || !task.nextDueDate.isAfter(DateTime.now())) return;
+
+    final reminderDate = task.nextDueDate.subtract(Duration(days: settings.defaultReminderDays));
+    if (!reminderDate.isAfter(DateTime.now())) return;
+
+    await NotificationService().scheduleMaintenanceReminder(
+      task.id,
+      'Bakım Hatırlatması',
+      '${device.name} için ${task.name} vakti yaklaştı.',
+      reminderDate,
+    );
+  }
+
+  /// Görevlerin hatırlatmasını güncel tarihe göre yeniden kurar (eskisini iptal eder).
+  Future<void> _refreshReminders(DeviceModel device, Iterable<TaskModel> tasks) async {
+    final settings = await getSettings();
+    for (final task in tasks) {
+      try {
+        await NotificationService().cancelNotification(task.id);
+      } catch (e) {
+        // Bildirim eklentisi olmayan platformlarda sessizce geç.
+      }
+      await _scheduleReminder(device, task, settings);
+    }
   }
 
   Future<DeviceModel?> getDeviceById(int id) async {
@@ -212,6 +265,119 @@ class IsarService {
     });
   }
 
+  /// Karekod okutulduğunda çağrılır. Cihazın tek bakım görevi varsa onu soru sormadan kaydeder.
+  ///
+  /// Birden fazla görev varsa hiçbir şey kaydetmeden [MaintenanceOutcome.needsSelection]
+  /// döner; hangi görevin yapıldığını kullanıcı seçer ([recordSelectedTasks]).
+  /// Tek görevli cihazda [duplicateWindow] içinde kayıt varsa (aynı bağlantının ikinci
+  /// kez gelmesi gibi) yeni kayıt açılmaz. Cihaz bulunamazsa `null` döner.
+  Future<MaintenanceReceipt?> recordMaintenanceViaQr(
+    int deviceId, {
+    Duration duplicateWindow = const Duration(seconds: 60),
+  }) async {
+    final isar = await db;
+    final device = await getDeviceById(deviceId);
+    if (device == null) return null;
+
+    if (device.tasks.length > 1) {
+      return MaintenanceReceipt(
+        deviceId: device.id,
+        deviceName: device.name,
+        outcome: MaintenanceOutcome.needsSelection,
+      );
+    }
+
+    final recent = await isar.historyModels
+        .filter()
+        .deviceIdEqualTo(deviceId)
+        .completedAtGreaterThan(DateTime.now().subtract(duplicateWindow))
+        .findAll();
+    if (recent.isNotEmpty) {
+      return MaintenanceReceipt(
+        deviceId: device.id,
+        deviceName: device.name,
+        outcome: MaintenanceOutcome.alreadyRecorded,
+        alreadyRecordedTaskNames: recent.map((h) => h.taskName).toList(),
+      );
+    }
+
+    return _recordTasks(isar, device, device.tasks.toList());
+  }
+
+  /// Kullanıcının seçtiği görevleri kaydeder. Cihaz bulunamazsa `null` döner.
+  Future<MaintenanceReceipt?> recordSelectedTasks(int deviceId, Set<int> taskIds) async {
+    final isar = await db;
+    final device = await getDeviceById(deviceId);
+    if (device == null) return null;
+
+    return _recordTasks(isar, device, device.tasks.where((t) => taskIds.contains(t.id)).toList());
+  }
+
+  Future<MaintenanceReceipt> _recordTasks(Isar isar, DeviceModel device, List<TaskModel> selected) async {
+    if (selected.isEmpty) {
+      return MaintenanceReceipt(
+        deviceId: device.id,
+        deviceName: device.name,
+        outcome: MaintenanceOutcome.noTasks,
+      );
+    }
+
+    final now = DateTime.now();
+    final recorded = <RecordedTask>[];
+    await isar.writeTxn(() async {
+      for (final task in selected) {
+        final previous = task.lastCompletedAt;
+        final historyId = await isar.historyModels.put(
+          HistoryModel()
+            ..deviceId = device.id
+            ..deviceName = device.name
+            ..taskName = task.name
+            ..completedAt = now,
+        );
+        task.lastCompletedAt = now;
+        await isar.taskModels.put(task);
+        recorded.add(RecordedTask(
+          taskId: task.id,
+          taskName: task.name,
+          historyId: historyId,
+          previousCompletedAt: previous,
+          nextDueDate: task.nextDueDate,
+        ));
+      }
+    });
+
+    await _refreshReminders(device, selected);
+
+    return MaintenanceReceipt(
+      deviceId: device.id,
+      deviceName: device.name,
+      outcome: MaintenanceOutcome.recorded,
+      recorded: recorded,
+    );
+  }
+
+  /// Karekodla açılan kayıtları ([recordMaintenanceViaQr], [recordSelectedTasks]) siler ve
+  /// görevleri eski tarihine döndürür.
+  Future<void> undoMaintenance(MaintenanceReceipt receipt) async {
+    if (!receipt.canUndo) return;
+
+    final isar = await db;
+    final restored = <TaskModel>[];
+    await isar.writeTxn(() async {
+      for (final entry in receipt.recorded) {
+        await isar.historyModels.delete(entry.historyId);
+        final task = await isar.taskModels.get(entry.taskId);
+        if (task == null) continue;
+        task.lastCompletedAt = entry.previousCompletedAt;
+        await isar.taskModels.put(task);
+        restored.add(task);
+      }
+    });
+
+    final device = await isar.deviceModels.get(receipt.deviceId);
+    if (device != null) await _refreshReminders(device, restored);
+  }
+
   Stream<List<HistoryModel>> listenToHistory() async* {
     final isar = await db;
     yield* isar.historyModels.where().sortByCompletedAtDesc().watch(fireImmediately: true);
@@ -241,6 +407,7 @@ class IsarService {
         'id': d.id,
         'name': d.name,
         'room': d.room,
+        'category': d.category,
         'notes': d.notes,
         'serviceInfo': d.serviceInfo,
         'purchaseDate': d.purchaseDate?.toIso8601String(),
@@ -278,6 +445,7 @@ class IsarService {
         final device = DeviceModel()
           ..name = d['name'] ?? 'İsimsiz Cihaz'
           ..room = d['room'] ?? ''
+          ..category = d['category']
           ..notes = d['notes']
           ..serviceInfo = d['serviceInfo']
           ..imagePath = d['imagePath'];

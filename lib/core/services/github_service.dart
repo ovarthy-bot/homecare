@@ -21,6 +21,9 @@ class GithubService {
       'room': device.room,
       'warranty': device.warrantyMonths,
     };
+    if (device.category != null && device.category!.isNotEmpty) {
+      data['category'] = device.category;
+    }
     if (device.purchaseDate != null) {
       data['purchaseDate'] = device.purchaseDate!.toIso8601String();
     }

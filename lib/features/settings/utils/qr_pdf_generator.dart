@@ -2,13 +2,10 @@ import 'dart:convert';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import '../../../core/deep_link/deep_link.dart';
 import '../../../data/models/device_model.dart';
 
 class QrPdfGenerator {
-  static String _generateQrData(DeviceModel device) {
-    return 'https://ovarthy-bot.github.io/homecare/device/index.html?id=${device.id}';
-  }
-
   static Future<void> generateAndPrintA4(List<DeviceModel> devices) async {
     final pdf = pw.Document();
 
@@ -35,7 +32,7 @@ class QrPdfGenerator {
                       height: qrSize,
                       child: pw.BarcodeWidget(
                         barcode: pw.Barcode.qrCode(),
-                        data: _generateQrData(device),
+                        data: DeepLink.qrData(device.id),
                         width: qrSize,
                         height: qrSize,
                       ),

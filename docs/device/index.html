@@ -177,6 +177,34 @@
             color: #ef4444;
         }
 
+        .open-app {
+            margin-top: 24px;
+            text-align: center;
+        }
+
+        .open-app-button {
+            display: block;
+            padding: 16px 20px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, var(--accent-color), #8b5cf6);
+            color: #fff;
+            font-weight: 600;
+            font-size: 1rem;
+            text-decoration: none;
+            box-shadow: 0 8px 20px var(--accent-glow);
+        }
+
+        .open-app-hint {
+            margin: 14px 0 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .open-app-hint[hidden] {
+            display: none;
+        }
+
         /* Loading spinner */
         .loader {
             width: 48px;
@@ -207,7 +235,8 @@
         document.addEventListener('DOMContentLoaded', async () => {
             const app = document.getElementById('app');
             const urlParams = new URLSearchParams(window.location.search);
-            const deviceId = urlParams.get('id');
+            const rawId = urlParams.get('id');
+            const deviceId = /^[0-9]+$/.test(rawId || '') ? rawId : null;
 
             if (!deviceId) {
                 app.innerHTML = `
@@ -228,7 +257,7 @@
                 }
                 
                 const device = await response.json();
-                renderDevice(device);
+                renderDevice(device, deviceId);
 
             } catch (error) {
                 console.error("Fetch error:", error);
@@ -237,11 +266,42 @@
                         <h2>Cihaz Bulunamadı</h2>
                         <p>Bu cihaza ait bilgiler henüz senkronize edilmemiş veya silinmiş olabilir.</p>
                     </div>
+                    ${openAppSection(deviceId)}
                 `;
+                wireOpenApp();
             }
         });
 
-        function renderDevice(device) {
+        // Uygulama yüklüyse bakımı doğrudan kaydeder. Yüklü olup olmadığı sayfadan bilinemez;
+        // düğmeye basıldıktan sonra sayfa görünür kalırsa açıklama gösterilir.
+        function openAppSection(deviceId) {
+            return `
+                <div class="open-app">
+                    <a class="open-app-button" id="open-app" href="homecare://app/bakim/yapildi?cihaz=${deviceId}">Uygulamada bakımı kaydet</a>
+                    <p class="open-app-hint" id="open-app-hint" hidden>Uygulama açılmadı. Homecare bu telefonda yüklü olmayabilir ya da bu cihaz başka bir telefonda kayıtlıdır.</p>
+                </div>
+            `;
+        }
+
+        function wireOpenApp() {
+            const button = document.getElementById('open-app');
+            const hint = document.getElementById('open-app-hint');
+            if (!button || !hint) return;
+
+            button.addEventListener('click', () => {
+                hint.hidden = true;
+                let leftPage = false;
+                const markLeft = () => { leftPage = true; };
+                document.addEventListener('visibilitychange', markLeft, { once: true });
+                window.addEventListener('pagehide', markLeft, { once: true });
+                window.addEventListener('blur', markLeft, { once: true });
+                setTimeout(() => {
+                    if (!leftPage && !document.hidden) hint.hidden = false;
+                }, 1500);
+            });
+        }
+
+        function renderDevice(device, deviceId) {
             let purchaseDateStr = '-';
             if (device.purchaseDate) {
                 const date = new Date(device.purchaseDate);
@@ -275,7 +335,7 @@
                         </svg>
                     </div>
                     <h1 class="device-name">${device.name || 'İsimsiz Cihaz'}</h1>
-                    <p class="device-room">${device.room || 'Oda belirtilmemiş'}</p>
+                    <p class="device-room">${device.room || 'Oda belirtilmemiş'}${device.category ? ' · ' + device.category : ''}</p>
                 </div>
 
                 <div class="info-group">
@@ -300,7 +360,9 @@
                 </div>
 
                 ${tasksHtml}
+                ${openAppSection(deviceId)}
             `;
+            wireOpenApp();
         }
     </script>
 </body>

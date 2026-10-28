@@ -8,9 +8,12 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
 
+import '../../../data/models/device_categories.dart';
 import '../../../data/models/device_model.dart';
 import '../../../data/models/task_model.dart';
+import '../../../core/deep_link/deep_link.dart';
 import '../../dashboard/presentation/providers/dashboard_providers.dart';
+import '../../settings/utils/qr_pdf_generator.dart';
 
 class DeviceDetailScreen extends ConsumerStatefulWidget {
   final int deviceId;
@@ -74,30 +77,43 @@ class _DeviceDetailScreenState extends ConsumerState<DeviceDetailScreen> {
     return '1 Aydan az';
   }
 
-  String _generateQrData(DeviceModel device) {
-    return 'https://ovarthy-bot.github.io/homecare/device/index.html?id=${device.id}';
-  }
-
   void _showQrDialog() {
     showDialog(
       context: context,
       builder: (context) {
-        final qrData = _generateQrData(_device!);
+        final qrData = DeepLink.qrData(_device!.id);
         return AlertDialog(
           title: Text(_device!.name),
-          content: SizedBox(
-            width: 250,
-            height: 250,
-            child: QrImageView(
-              data: qrData,
-              version: QrVersions.auto,
-              backgroundColor: Colors.white,
-            ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 250,
+                height: 250,
+                child: QrImageView(
+                  data: qrData,
+                  version: QrVersions.auto,
+                  backgroundColor: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Yazdırıp cihazın yanına yapıştırın. Uygulamanın tarayıcısıyla okutunca bakım '
+                'otomatik kaydedilir; telefonun kamerasıyla okutunca cihaz sayfası açılır.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
           ),
           actions: [
             TextButton(
               onPressed: () => context.pop(),
               child: const Text('Kapat'),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => QrPdfGenerator.generateAndPrintA4([_device!]),
+              icon: const Icon(Icons.print),
+              label: const Text('Yazdır'),
             ),
             ElevatedButton.icon(
               onPressed: () async {
@@ -169,6 +185,16 @@ class _DeviceDetailScreenState extends ConsumerState<DeviceDetailScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           Text('Bulunduğu Oda: ${_device!.room}', style: Theme.of(context).textTheme.titleMedium),
+          if (_device!.category != null && _device!.category!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(DeviceCategories.iconFor(_device!.category), size: 18),
+                const SizedBox(width: 8),
+                Text(_device!.category!, style: Theme.of(context).textTheme.bodyLarge),
+              ],
+            ),
+          ],
           const SizedBox(height: 16),
           
           if (_device!.purchaseDate != null)
