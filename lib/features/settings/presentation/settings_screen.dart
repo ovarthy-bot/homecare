@@ -308,7 +308,7 @@ class SettingsScreen extends ConsumerWidget {
               const ListTile(
                 leading: Icon(Icons.info_outline),
                 title: Text('Uygulama Hakkında'),
-                subtitle: Text('Homecare v1.0.0'),
+                subtitle: Text('Homecare v2.0.0'),
               )
             ],
           );

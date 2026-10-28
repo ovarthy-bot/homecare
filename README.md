@@ -119,7 +119,7 @@ Bu proje açık kaynaktır ve her türlü katkıya (Pull Request, Bug Report, Fe
 
 ## 📝 Lisans
 
-Bu proje **MIT Lisansı** ile lisanslanmıştır. Daha fazla bilgi için [LICENSE](LICENSE) dosyasına göz atabilirsiniz.
+Bu proje **MIT Lisansı** ile lisanslanmıştır. Daha fazla bilgi için [LICENSE](LICENSE) dosyasına göz atabilirsiniz. Telif hakkı © 2026 OnurSuperAI.
 
 ---
 *Evinizin sağlığı bizim için önemli! 💙 Destek olmak isterseniz projeye ⭐ (Yıldız) vermeyi unutmayın.*
