@@ -205,6 +205,25 @@ class IsarService {
     unawaited(_pushDevice(device.id));
   }
 
+  /// Cihaz sayfasındaki not kutusu için: yalnızca notu günceller; görevlere ve hatırlatmalara dokunmaz.
+  Future<void> updateDeviceNotes(int deviceId, String notes) async {
+    final isar = await db;
+    final device = await isar.writeTxn(() async {
+      final device = await isar.deviceModels.get(deviceId);
+      if (device == null) return null;
+      device.notes = notes;
+      await isar.deviceModels.put(device);
+      return device;
+    });
+    if (device == null) return;
+
+    // Not web sayfasında da göründüğü için diğer cihaz değişiklikleri gibi dışarıya yansır.
+    await device.tasks.load();
+    final settings = await getSettings();
+    unawaited(_githubService.syncDeviceToGithub(device, settings));
+    unawaited(_pushDevice(deviceId));
+  }
+
   Future<void> _scheduleReminder(DeviceModel device, TaskModel task, SettingsModel settings) async {
     if (!settings.notificationsEnabled || !task.nextDueDate.isAfter(DateTime.now())) return;
 
@@ -528,6 +547,8 @@ class IsarService {
         'name': d.name,
         'room': d.room,
         'category': d.category,
+        'modelInfo': d.modelInfo,
+        'price': d.price,
         'notes': d.notes,
         'serviceInfo': d.serviceInfo,
         'purchaseDate': d.purchaseDate?.toIso8601String(),
@@ -566,6 +587,8 @@ class IsarService {
           ..name = d['name'] ?? 'İsimsiz Cihaz'
           ..room = d['room'] ?? ''
           ..category = d['category']
+          ..modelInfo = d['modelInfo']
+          ..price = (d['price'] as num?)?.toDouble()
           ..notes = d['notes']
           ..serviceInfo = d['serviceInfo']
           ..imagePath = d['imagePath'];

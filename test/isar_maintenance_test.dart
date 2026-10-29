@@ -392,5 +392,22 @@ void main() {
         expect(DateTime.parse(pushedTask['lastCompletedAt'] as String).isBefore(startedAt), isFalse);
       });
     });
+
+    test('cihaz sayfasındaki not kutusu yalnızca notu günceller; model ve fiyat kalıcıdır', () async {
+      final daikin = await deviceNamed('Daikin Klima');
+      final taskIds = daikin.tasks.map((t) => t.id).toSet();
+      daikin
+        ..modelInfo = 'Daikin FTXM35'
+        ..price = 24990.5;
+      await isar.writeTxn(() => isar.deviceModels.put(daikin));
+
+      await service.updateDeviceNotes(daikin.id, 'Filtre ayda bir yıkanır');
+
+      final reloaded = await deviceNamed('Daikin Klima');
+      expect(reloaded.notes, 'Filtre ayda bir yıkanır');
+      expect(reloaded.modelInfo, 'Daikin FTXM35');
+      expect(reloaded.price, 24990.5);
+      expect(reloaded.tasks.map((t) => t.id).toSet(), taskIds);
+    });
   });
 }

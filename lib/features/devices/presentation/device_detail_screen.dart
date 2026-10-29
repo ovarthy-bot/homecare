@@ -8,13 +8,19 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
 
+import '../../../data/local/isar_service.dart';
 import '../../../data/models/device_categories.dart';
 import '../../../data/models/device_model.dart';
 import '../../../data/models/task_model.dart';
 import '../../../core/deep_link/deep_link.dart';
 import '../../../core/services/backend_service.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../dashboard/presentation/providers/dashboard_providers.dart';
 import '../../settings/utils/qr_pdf_generator.dart';
+import 'widgets/device_details_card.dart';
+import 'widgets/device_notes_card.dart';
+import 'widgets/glass_card.dart';
+import 'widgets/task_ring_card.dart';
 
 class DeviceDetailScreen extends ConsumerStatefulWidget {
   final int deviceId;
@@ -26,12 +32,14 @@ class DeviceDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _DeviceDetailScreenState extends ConsumerState<DeviceDetailScreen> {
+  late final IsarService _isarService;
   DeviceModel? _device;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    _isarService = ref.read(isarServiceProvider);
     _loadDevice();
   }
 
@@ -62,20 +70,11 @@ class _DeviceDetailScreenState extends ConsumerState<DeviceDetailScreen> {
     _loadDevice();
   }
 
-  String _calculateUsageTime(DateTime purchaseDate) {
-    final now = DateTime.now();
-    int years = now.year - purchaseDate.year;
-    int months = now.month - purchaseDate.month;
-    
-    if (months < 0) {
-      years--;
-      months += 12;
-    }
-    
-    if (years > 0 && months > 0) return '$years Yıl $months Ay';
-    if (years > 0) return '$years Yıl';
-    if (months > 0) return '$months Ay';
-    return '1 Aydan az';
+  /// Not kutusu sayfa kapanırken de kaydeder; o sırada `ref` kullanılamayacağı için servis önceden alınır.
+  Future<void> _saveNotes(String text) async {
+    await _isarService.updateDeviceNotes(widget.deviceId, text);
+    _device?.notes = text;
+    if (mounted) setState(() {});
   }
 
   Future<void> _showQrDialog() async {
@@ -169,87 +168,155 @@ class _DeviceDetailScreenState extends ConsumerState<DeviceDetailScreen> {
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_device!.name),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.qr_code),
-            onPressed: _showQrDialog,
-          ),
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () async {
-              await context.push('/devices/edit/${widget.deviceId}');
-              _loadDevice(); // Reload after edit
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete, color: Colors.red),
-            onPressed: _deleteDevice,
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text('Bulunduğu Oda: ${_device!.room}', style: Theme.of(context).textTheme.titleMedium),
-          if (_device!.category != null && _device!.category!.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(DeviceCategories.iconFor(_device!.category), size: 18),
-                const SizedBox(width: 8),
-                Text(_device!.category!, style: Theme.of(context).textTheme.bodyLarge),
-              ],
+    final device = _device!;
+    final tasks = device.tasks.toList()..sort((a, b) => a.daysRemaining.compareTo(b.daysRemaining));
+
+    return Container(
+      decoration: const BoxDecoration(gradient: AppTheme.screenGradient),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.qr_code),
+              tooltip: 'Karekod',
+              onPressed: _showQrDialog,
+            ),
+            IconButton(
+              icon: const Icon(Icons.edit),
+              tooltip: 'Düzenle',
+              onPressed: () async {
+                await context.push('/devices/edit/${widget.deviceId}');
+                _loadDevice(); // Reload after edit
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              tooltip: 'Sil',
+              onPressed: _deleteDevice,
             ),
           ],
-          const SizedBox(height: 16),
-          
-          if (_device!.purchaseDate != null)
-            Text('Kullanım Süresi: ${_calculateUsageTime(_device!.purchaseDate!)}', style: Theme.of(context).textTheme.bodyLarge),
-            
-          if (_device!.serviceInfo != null && _device!.serviceInfo!.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text('Yetkili Servis: ${_device!.serviceInfo}', style: Theme.of(context).textTheme.bodyMedium),
-          ],
-          
-          if (_device!.notes != null && _device!.notes!.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text('Notlar: ${_device!.notes}', style: Theme.of(context).textTheme.bodyMedium),
-          ],
-
-          const SizedBox(height: 32),
-          Text('Bakım Görevleri', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 16),
-          
-          ..._device!.tasks.map((task) {
-            final days = task.daysRemaining;
-            String status = '';
-            Color color = Colors.grey;
-            if (days < 0) {
-              status = '${-days} gün gecikti';
-              color = Colors.red;
-            } else {
-              status = '$days gün sonra';
-              color = Colors.green;
-            }
-
-            return Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: ListTile(
-                title: Text(task.name),
-                subtitle: Text('Periyot: ${task.intervalDays} gün\nDurum: $status', style: TextStyle(color: color)),
-                trailing: IconButton(
-                  icon: const Icon(Icons.check_circle_outline, color: Colors.green, size: 32),
-                  tooltip: 'Yapıldı İşaretle',
-                  onPressed: () => _completeTask(task),
+        ),
+        body: ListView(
+          padding: EdgeInsets.fromLTRB(16, 8, 16, MediaQuery.of(context).padding.bottom + 32),
+          children: [
+            _DeviceHeaderCard(device: device),
+            const SizedBox(height: 12),
+            DeviceDetailsCard(device: device),
+            const SizedBox(height: 12),
+            DeviceNotesCard(text: device.notes ?? '', onSave: _saveNotes),
+            const SizedBox(height: 24),
+            Text('Bakım Görevleri', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 12),
+            if (tasks.isEmpty)
+              GlassCard(
+                child: Text(
+                  'Bu cihaz için bakım görevi yok. Düzenle düğmesinden ekleyebilirsiniz.',
+                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
-              ),
-            );
-          }),
+              )
+            else
+              ..._buildTaskRows(tasks),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Görev kartları yan yana ikişerli dizilir; aynı satırdaki kartlar eşit yüksekliktedir.
+  List<Widget> _buildTaskRows(List<TaskModel> tasks) {
+    const gap = 12.0;
+    return [
+      for (var i = 0; i < tasks.length; i += 2)
+        Padding(
+          padding: EdgeInsets.only(bottom: i + 2 < tasks.length ? gap : 0),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: TaskRingCard(task: tasks[i], onDone: () => _completeTask(tasks[i]))),
+                const SizedBox(width: gap),
+                Expanded(
+                  child: i + 1 < tasks.length
+                      ? TaskRingCard(task: tasks[i + 1], onDone: () => _completeTask(tasks[i + 1]))
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ),
+          ),
+        ),
+    ];
+  }
+}
+
+class _DeviceHeaderCard extends StatelessWidget {
+  final DeviceModel device;
+
+  const _DeviceHeaderCard({required this.device});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
+    final category = device.category;
+    final subtitle = [device.room, if (category != null && category.isNotEmpty) category].join(' · ');
+
+    return GlassCard(
+      child: Row(
+        children: [
+          _DeviceIconTile(device: device),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  device.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.titleLarge?.copyWith(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(subtitle, style: theme.bodyMedium),
+              ],
+            ),
+          ),
         ],
       ),
+    );
+  }
+}
+
+/// Cihaz fotoğrafı varsa onu, yoksa kategori simgesini gösteren degrade kutu.
+class _DeviceIconTile extends StatelessWidget {
+  final DeviceModel device;
+
+  const _DeviceIconTile({required this.device});
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = Icon(DeviceCategories.iconFor(device.category), size: 32, color: AppTheme.textPrimary);
+    final imagePath = device.imagePath;
+
+    return Container(
+      width: 64,
+      height: 64,
+      clipBehavior: Clip.antiAlias,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        gradient: AppTheme.accentGradient,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: imagePath == null
+          ? icon
+          : Image.file(
+              File(imagePath),
+              width: 64,
+              height: 64,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => icon,
+            ),
     );
   }
 }

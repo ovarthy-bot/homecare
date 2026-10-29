@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -8,6 +9,7 @@ import '../../../data/models/device_categories.dart';
 import '../../../data/models/device_model.dart';
 import '../../../data/models/task_model.dart';
 import '../../dashboard/presentation/providers/dashboard_providers.dart';
+import '../device_details.dart';
 
 class AddEditDeviceScreen extends ConsumerStatefulWidget {
   final int? deviceId;
@@ -22,6 +24,8 @@ class _AddEditDeviceScreenState extends ConsumerState<AddEditDeviceScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _roomController;
+  late TextEditingController _modelController;
+  late TextEditingController _priceController;
   late TextEditingController _notesController;
   late TextEditingController _serviceInfoController;
   late TextEditingController _warrantyController;
@@ -38,6 +42,8 @@ class _AddEditDeviceScreenState extends ConsumerState<AddEditDeviceScreen> {
     super.initState();
     _nameController = TextEditingController();
     _roomController = TextEditingController();
+    _modelController = TextEditingController();
+    _priceController = TextEditingController();
     _notesController = TextEditingController();
     _serviceInfoController = TextEditingController();
     _warrantyController = TextEditingController(text: '24');
@@ -52,6 +58,8 @@ class _AddEditDeviceScreenState extends ConsumerState<AddEditDeviceScreen> {
         _nameController.text = _existingDevice!.name;
         _roomController.text = _existingDevice!.room;
         _category = _existingDevice!.category;
+        _modelController.text = _existingDevice!.modelInfo ?? '';
+        _priceController.text = _existingDevice!.price == null ? '' : priceToInput(_existingDevice!.price!);
         _notesController.text = _existingDevice!.notes ?? '';
         _serviceInfoController.text = _existingDevice!.serviceInfo ?? '';
         _warrantyController.text = _existingDevice!.warrantyMonths.toString();
@@ -96,6 +104,8 @@ class _AddEditDeviceScreenState extends ConsumerState<AddEditDeviceScreen> {
         device.name = _nameController.text.trim();
         device.room = _roomController.text.trim();
         device.category = _category;
+        device.modelInfo = _modelController.text.trim();
+        device.price = parsePrice(_priceController.text);
         device.notes = _notesController.text.trim();
         device.serviceInfo = _serviceInfoController.text.trim();
         device.warrantyMonths = int.tryParse(_warrantyController.text) ?? 24;
@@ -244,6 +254,31 @@ class _AddEditDeviceScreenState extends ConsumerState<AddEditDeviceScreen> {
                   ),
               ],
               onChanged: (val) => setState(() => _category = val),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: TextFormField(
+                    controller: _modelController,
+                    decoration: const InputDecoration(labelText: 'Model (marka, model adı)'),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  flex: 1,
+                  child: TextFormField(
+                    controller: _priceController,
+                    decoration: const InputDecoration(labelText: 'Fiyat (TL)'),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
+                    validator: (val) =>
+                        val == null || val.trim().isEmpty || parsePrice(val) != null ? null : 'Geçersiz tutar',
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             Row(

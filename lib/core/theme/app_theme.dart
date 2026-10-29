@@ -23,6 +23,22 @@ class AppTheme {
     0xFF3F51B5,
   ); // Indigo veya referanstaki lacivert tonları (ana buton için)
 
+  // Cihaz sayfasındaki cam görünümlü arayüz
+  static const Color accentStart = Color(0xFF4F6BF0); // İndigo
+  static const Color accentEnd = Color(0xFF8B5CF6); // Mor
+  static const LinearGradient accentGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [accentStart, accentEnd],
+  );
+  static const LinearGradient screenGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFF0A0F24), Color(0xFF0F1535), Color(0xFF241846)],
+  );
+  static const Color glassFill = Color(0x14FFFFFF); // %8 beyaz
+  static const Color glassBorder = Color(0x1AFFFFFF); // %10 beyaz
+
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,
