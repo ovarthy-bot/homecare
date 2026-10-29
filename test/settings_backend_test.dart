@@ -160,5 +160,11 @@ void main() {
 
       expect(result.summary, 'Yeni web kaydı yok · cihazlar gönderilemedi: Ara depoya ulaşılamadı.');
     });
+
+    test('web\'de güncellenen notları da sayar', () {
+      const result = WebSyncResult(imported: 1, notesUpdated: 2, unmatched: 0, pushedDevices: 5);
+
+      expect(result.summary, '1 web kaydı eklendi · 2 not güncellendi · 5 cihaz güncellendi');
+    });
   });
 }

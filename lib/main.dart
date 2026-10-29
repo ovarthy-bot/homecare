@@ -51,7 +51,8 @@ class _HomecareAppState extends ConsumerState<HomecareApp> with WidgetsBindingOb
     if (state == AppLifecycleState.resumed) _syncWebRecords();
   }
 
-  /// Uygulaması olmayan telefonlardan gelen bakım kayıtlarını sessizce alır; yeni kayıt varsa haber verir.
+  /// Uygulaması olmayan telefonlardan gelen bakım kayıtlarını ve web'de değiştirilen notları
+  /// sessizce alır; yenilik varsa haber verir.
   Future<void> _syncWebRecords() async {
     final last = _lastSync;
     if (last != null && DateTime.now().difference(last) < _minSyncGap) return;
@@ -59,9 +60,13 @@ class _HomecareAppState extends ConsumerState<HomecareApp> with WidgetsBindingOb
 
     try {
       final result = await ref.read(isarServiceProvider).syncWithBackend();
-      if (result != null && result.imported > 0) {
+      final news = [
+        if (result != null && result.imported > 0) '${result.imported} bakım kaydı eklendi',
+        if (result != null && result.notesUpdated > 0) '${result.notesUpdated} cihaz notu güncellendi',
+      ];
+      if (news.isNotEmpty) {
         _messengerKey.currentState?.showSnackBar(
-          SnackBar(content: Text('Web\'den ${result.imported} bakım kaydı eklendi.')),
+          SnackBar(content: Text('Web\'den ${news.join(', ')}.')),
         );
       }
     } catch (e) {

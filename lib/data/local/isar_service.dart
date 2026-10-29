@@ -431,17 +431,23 @@ class IsarService {
     }
   }
 
-  /// Ara depodaki bekleyen web kayıtlarını telefona alır, sonra tüm cihazları (güncel bakım
-  /// tarihleriyle) ara depoya gönderir. Kurulu değilse `null` döner; kayıtlar alınamazsa
-  /// [BackendException] fırlatır. Cihazların gönderilememesi sonucu bozmaz, `pushError`a yazılır.
+  /// Ara depodaki bekleyen web kayıtlarını ve web'de düzenlenen notları telefona alır, sonra tüm
+  /// cihazları (güncel bakım tarihleri ve notlarla) ara depoya gönderir. Kurulu değilse `null`
+  /// döner; kayıtlar alınamazsa [BackendException] fırlatır. Cihazların gönderilememesi sonucu
+  /// bozmaz, `pushError`a yazılır.
   Future<WebSyncResult?> syncWithBackend() async {
     final settings = await getSettings();
     if (!BackendService.isConfigured(settings)) return null;
 
-    final records = await _backend.pullRecords(settings);
-    final imported = await _importWebRecords(records);
+    final inbox = await _backend.pull(settings);
+    final imported = await _importWebRecords(inbox.records);
+    final notesUpdated = await _importWebNotes(inbox.notes);
     // Alınan ve bu telefonda karşılığı olmayan her kayıt onaylanır; yoksa her eşitlemede yeniden gelir.
-    await _backend.acknowledge(settings, records.map((r) => r.recordId).toList());
+    await _backend.acknowledge(
+      settings,
+      inbox.records.map((r) => r.recordId).toList(),
+      noteIds: inbox.notes.map((n) => n.noteId).toList(),
+    );
 
     var pushedDevices = 0;
     String? pushError;
@@ -458,10 +464,31 @@ class IsarService {
 
     return WebSyncResult(
       imported: imported.imported,
+      notesUpdated: notesUpdated,
       unmatched: imported.unmatched,
       pushedDevices: pushedDevices,
       pushError: pushError,
     );
+  }
+
+  /// Web'de yazılan notları cihazlara işler; notu değişen cihaz sayısını döner. Aynı metin yeniden
+  /// gelirse (onay gidememişse) bir şey değişmez.
+  Future<int> _importWebNotes(List<WebNote> notes) async {
+    if (notes.isEmpty) return 0;
+
+    final isar = await db;
+    var updated = 0;
+    await isar.writeTxn(() async {
+      final oldestFirst = [...notes]..sort((a, b) => a.editedAt.compareTo(b.editedAt));
+      for (final note in oldestFirst) {
+        final device = await isar.deviceModels.get(note.deviceId);
+        if (device == null || (device.notes ?? '') == note.text) continue;
+        device.notes = note.text;
+        await isar.deviceModels.put(device);
+        updated++;
+      }
+    });
+    return updated;
   }
 
   Future<({int imported, int unmatched})> _importWebRecords(List<WebRecord> records) async {

@@ -41,15 +41,19 @@ Sizin telefonunuz (Homecare) ── açılışta kayıtları çeker, cihazları 
   “Web'den” işaretiyle görünür.
 
 Betiği sonradan değiştirirseniz `Dağıt → Dağıtımları yönet → düzenle → Yeni sürüm` demeniz gerekir;
-yoksa eski sürüm çalışmaya devam eder.
+yoksa eski sürüm çalışmaya devam eder. Web'den not düzenleme ile model/fiyat gösterimi `Code.gs`'in bu
+sürümünü gerektirir: eski betikte not kutusu "Ara depo betiği güncel değil" der, model ve fiyat sayfada "—" görünür.
+Betiği güncelledikten sonra uygulamada Ayarlar → Şimdi Eşitle ile cihazları bir kez yeniden gönderin.
 
 ## Nasıl çalışır, neye dikkat etmeli?
 
 - **İki tür anahtar.** Sahip anahtarı (`SECRET`) yalnızca uygulamadadır: cihaz yükler, bekleyen kayıtları çeker.
   Karekoda yazılan anahtar `HMAC-SHA256(SECRET, cihaz numarası)`'nın ilk 16 hanesidir: **yalnızca o cihazın**
   bilgisini okur ve o cihaza kayıt bırakır. Birinin karekodun fotoğrafını çekmesi diğer cihazları açmaz, ama o cihazın
-  bilgisini (servis, notlar dahil) görmesini ve sahte kayıt bırakmasını sağlar. Evdeki kullanım için makul bir
-  ödünleşimdir; aşırı kayıt bırakılırsa bekleyen kayıt sınırı (500) ve 60 sn tekrar koruması devreye girer.
+  bilgisini (model, fiyat, servis, notlar dahil) görmesini, sahte kayıt bırakmasını ve notunu değiştirmesini
+  sağlar. Evdeki kullanım için makul bir ödünleşimdir; aşırı kayıt bırakılırsa bekleyen kayıt sınırı (500) ve
+  60 sn tekrar koruması devreye girer. Fiyat ve model yalnızca bu anahtarlı yoldan gider; GitHub'a yazılan
+  herkese açık cihaz dosyasına (eski yöntem) konmaz.
 - **Sahte kaydı fark edersiniz.** Web'den gelen her kayıt geçmişte “Web'den” işaretiyle görünür.
 - **Veriler sizde kalır.** Cihaz bilgileri ve kayıtlar yalnızca sizin Google hesabınızdaki Sheet'te durur,
   herkese açık bir depoya yazılmaz. Eski GitHub token ile eşitleme isteğe bağlı olarak çalışmaya devam eder
@@ -60,6 +64,10 @@ yoksa eski sürüm çalışmaya devam eder.
 - **Cihaz sayfası güncel görünür.** Bekleyen web kayıtları görevlerin bakım tarihine hemen yansıtılır;
   telefon almadan da sayfa görevi “yapıldı” gösterir ve başkası aynı görevi yeniden kaydetmeye yönlenmez.
   (Sheet'te saklanan veri değişmez, telefon kendi tarihini gönderince onunki geçerli olur.)
+- **Notlar iki yönlüdür.** Cihaz sayfasındaki not kutusu yazarken kendiliğinden kaydeder. Not Sheet'te `Notlar`
+  sayfasında (cihaz başına en fazla bir satır) bekler, sayfa yenilense de görünür kalır; uygulama açılınca
+  (ya da Şimdi Eşitle ile) telefondaki cihaz notunu günceller ve satır silinir. Aynı notu hem web'de hem
+  telefonda değiştirirseniz, telefon eşitlenirken web'deki bekleyen not geçerli olur.
 - **Tek sahip telefonu.** Kayıtlar çekilince “alındı” işaretlenir; aynı anahtarla iki telefon eşitlenirse
   kaydı yalnızca ilk çeken telefon görür.
 - **`SECRET`'ı değiştirirseniz** uygulamadaki anahtarı da güncelleyin ve karekodları yeniden yazdırın.

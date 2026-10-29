@@ -10,13 +10,18 @@
  *  - Sahip (uygulama): `key` = betik özelliklerindeki SECRET. Cihaz bilgisi yükler,
  *    bekleyen kayıtları çeker ve onaylar.
  *  - Ziyaretçi (QR'ı okutan): `k` = HMAC-SHA256(SECRET, cihaz numarası)'nın ilk 16 hanesi.
- *    Yalnızca o cihazın bilgisini okuyabilir ve o cihaz için bakım kaydı bırakabilir.
+ *    Yalnızca o cihazın bilgisini okuyabilir, o cihaz için bakım kaydı bırakabilir ve
+ *    cihazın notunu değiştirebilir (not, uygulama çekene kadar "bekleyen" durur).
  */
 
 var SHEET_DEVICES = 'Cihazlar';
 var SHEET_RECORDS = 'Kayitlar';
+var SHEET_NOTES = 'Notlar';
 var DEVICE_HEADERS = ['id', 'json', 'updatedAt'];
 var RECORD_HEADERS = ['recordId', 'deviceId', 'taskId', 'taskName', 'recordedAt', 'status', 'importedAt'];
+// Cihaz başına en fazla bir bekleyen not satırı tutulur; telefon çekip onaylayınca satır silinir.
+// Metin JSON olarak saklanır: ziyaretçinin yazdığı "=..." gibi bir metin Sheets'te formül sayılmasın.
+var NOTE_HEADERS = ['noteId', 'deviceId', 'text', 'editedAt'];
 
 // Aynı cihaz+görev için bu süre içinde gelen ikinci kayıt yok sayılır (çift dokunuş, yeniden deneme).
 var DUPLICATE_WINDOW_MS = 60 * 1000;
@@ -73,6 +78,8 @@ function route_(p) {
       return visitorOnly_(p, secret, getDevice_);
     case 'record':
       return visitorOnly_(p, secret, recordTasks_);
+    case 'note':
+      return visitorOnly_(p, secret, setNote_);
     default:
       return { ok: false, error: 'unknown_action' };
   }
@@ -120,6 +127,7 @@ function getDevice_(p, id) {
 
   var device = JSON.parse(found.json);
   applyPendingRecords_(device, id);
+  applyPendingNote_(device, id);
   return { ok: true, device: device };
 }
 
@@ -141,6 +149,38 @@ function applyPendingRecords_(device, id) {
     if (pending && (!task.lastCompletedAt || Date.parse(pending) > Date.parse(task.lastCompletedAt))) {
       task.lastCompletedAt = pending;
     }
+  });
+}
+
+/**
+ * Telefonun henüz almadığı web notunu gösterir; sayfa yenilenince yazılan not kaybolmuş görünmesin.
+ * Saklanan cihaz verisi değişmez: telefon notu alıp cihazı yeniden gönderince bekleyen not kalmaz.
+ */
+function applyPendingNote_(device, id) {
+  var pending = readNotes_(notesSheet_()).filter(function (n) { return n.deviceId === id; })[0];
+  if (!pending) return;
+  if (pending.text) device.notes = pending.text;
+  else delete device.notes;
+}
+
+function setNote_(p, id) {
+  if (typeof p.text !== 'string') return { ok: false, error: 'bad_request' };
+  var text = p.text.trim();
+  if (text.length > MAX_TEXT_LENGTH) return { ok: false, error: 'too_long' };
+
+  return withLock_(function () {
+    if (!findDevice_(id)) return { ok: false, error: 'not_found' };
+
+    var sheet = notesSheet_();
+    // Yeni numara: telefon eski notu çekmiş ama henüz onaylamamışsa, onay yeni notu silmesin.
+    var values = [Utilities.getUuid(), id, JSON.stringify(text), now_().toISOString()];
+    var row = indexNotesByDevice_(sheet)[id];
+    if (row) {
+      sheet.getRange(row, 1, 1, NOTE_HEADERS.length).setValues([values]);
+    } else {
+      sheet.appendRow(values);
+    }
+    return { ok: true, notes: text };
   });
 }
 
@@ -219,6 +259,8 @@ function deleteDevice_(p) {
   return withLock_(function () {
     var row = indexById_(devicesSheet_())[id];
     if (row) devicesSheet_().deleteRow(row);
+    var noteRow = indexNotesByDevice_(notesSheet_())[id];
+    if (noteRow) notesSheet_().deleteRow(noteRow);
     return { ok: true, deleted: !!row };
   });
 }
@@ -235,11 +277,15 @@ function pull_() {
         recordedAt: r.recordedAt,
       };
     });
-  return { ok: true, records: records };
+  var notes = readNotes_(notesSheet_()).map(function (n) {
+    return { noteId: n.noteId, deviceId: Number(n.deviceId), text: n.text, editedAt: n.editedAt };
+  });
+  return { ok: true, records: records, notes: notes };
 }
 
 function ack_(p) {
   var ids = Array.isArray(p.ids) ? p.ids.map(String) : [];
+  var noteIds = Array.isArray(p.noteIds) ? p.noteIds.map(String) : [];
   return withLock_(function () {
     var sheet = recordsSheet_();
     var rows = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues() : [];
@@ -253,8 +299,23 @@ function ack_(p) {
       sheet.getRange(i + 2, 6, 1, 2).setValues([['imported', stamp]]);
       acknowledged++;
     });
-    return { ok: true, acknowledged: acknowledged };
+    return { ok: true, acknowledged: acknowledged, notesAcknowledged: removeNotes_(noteIds) };
   });
+}
+
+/** Onaylanan bekleyen notları siler (alttan üste: satır numaraları kaymasın). */
+function removeNotes_(noteIds) {
+  var sheet = notesSheet_();
+  var wanted = {};
+  noteIds.forEach(function (id) { wanted[id] = true; });
+
+  var removed = 0;
+  for (var row = sheet.getLastRow(); row >= 2; row--) {
+    if (!wanted[String(sheet.getRange(row, 1).getValues()[0][0])]) continue;
+    sheet.deleteRow(row);
+    removed++;
+  }
+  return removed;
 }
 
 // --- Cihaz verisi ---------------------------------------------------------------------------
@@ -264,10 +325,13 @@ function sanitizeDevice_(raw) {
   if (!raw || !/^[0-9]+$/.test(String(raw.id))) return null;
 
   var device = { id: Number(raw.id), name: text_(raw.name), room: text_(raw.room) };
-  ['category', 'purchaseDate', 'serviceInfo', 'notes'].forEach(function (field) {
+  ['category', 'modelInfo', 'purchaseDate', 'serviceInfo', 'notes'].forEach(function (field) {
     if (raw[field]) device[field] = text_(raw[field]);
   });
   if (raw.warranty !== undefined && !isNaN(Number(raw.warranty))) device.warranty = Number(raw.warranty);
+  if (raw.price !== undefined && raw.price !== null && raw.price !== '' && Number(raw.price) >= 0) {
+    device.price = Number(raw.price);
+  }
 
   device.tasks = (Array.isArray(raw.tasks) ? raw.tasks : [])
     .filter(function (t) { return t && /^[0-9]+$/.test(String(t.id)); })
@@ -323,6 +387,33 @@ function readRecords_(sheet, limit) {
     });
 }
 
+/** Bekleyen notlar; metin JSON'dan çözülür. */
+function readNotes_(sheet) {
+  var last = sheet.getLastRow();
+  if (last < 2) return [];
+  return sheet
+    .getRange(2, 1, last - 1, NOTE_HEADERS.length)
+    .getValues()
+    .map(function (row) {
+      var text = '';
+      try {
+        text = String(JSON.parse(String(row[2])));
+      } catch (err) { /* bozuk satır: boş not sayılır */ }
+      return { noteId: String(row[0]), deviceId: String(row[1]), text: text, editedAt: String(row[3]) };
+    });
+}
+
+/** cihaz numarası -> bekleyen not satırı. */
+function indexNotesByDevice_(sheet) {
+  var map = {};
+  var last = sheet.getLastRow();
+  if (last < 2) return map;
+  sheet.getRange(2, 2, last - 1, 1).getValues().forEach(function (row, i) {
+    map[String(row[0])] = i + 2;
+  });
+  return map;
+}
+
 function countPending_(sheet) {
   return readRecords_(sheet, 0).filter(function (r) { return r.status === 'pending'; }).length;
 }
@@ -335,6 +426,10 @@ function devicesSheet_() {
 
 function recordsSheet_() {
   return sheet_(SHEET_RECORDS, RECORD_HEADERS);
+}
+
+function notesSheet_() {
+  return sheet_(SHEET_NOTES, NOTE_HEADERS);
 }
 
 /** Sayfayı yoksa başlık satırıyla oluşturur. Tüm hücreler metin: Sheets tarih/sayı çevirmesin. */

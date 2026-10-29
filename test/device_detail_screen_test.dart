@@ -105,10 +105,21 @@ void main() {
       expect(find.textContaining('kaldı'), findsOneWidget);
       expect(find.text('Bitiş: ${date.format(device.warrantyEndDate!)}'), findsOneWidget);
       expect(find.text('Düzenli kullanım önerilir.'), findsNWidgets(2)); // ayrıntı satırı + not kutusu
+      expect(find.text('Yetkili servis'), findsNothing, reason: 'servis bilgisi girilmemişse satır yok');
 
       await tester.tap(find.text('Ayrıntılar'));
       await tester.pumpAndSettle();
       expect(find.text('8.489 TL'), findsNothing);
+    });
+
+    testWidgets('yetkili servis bilgisi varsa ayrıntılarda gösterilir', (tester) async {
+      await _pumpScreen(tester, device: printer()..serviceInfo = 'Merkez servis 0850 000 00 00');
+
+      await tester.tap(find.text('Ayrıntılar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Yetkili servis'), findsOneWidget);
+      expect(find.text('Merkez servis 0850 000 00 00'), findsOneWidget);
     });
 
     testWidgets('girilmemiş bilgiler "—" ile gösterilir', (tester) async {

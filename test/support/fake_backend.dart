@@ -13,6 +13,10 @@ class FakeBackend {
   /// `pull` ile dönecek bekleyen kayıtlar (onaylananlar çıkarılır).
   final pending = <Map<String, dynamic>>[];
   final acknowledged = <String>[];
+
+  /// `pull` ile dönecek, web'de düzenlenmiş notlar (onaylananlar çıkarılır).
+  final pendingNotes = <Map<String, dynamic>>[];
+  final acknowledgedNotes = <String>[];
   final pushedDevices = <Map<String, dynamic>>[];
   final deletedDevices = <int>[];
   final requests = <Map<String, dynamic>>[];
@@ -51,10 +55,15 @@ class FakeBackend {
         return {
           'ok': true,
           'records': pending.where((r) => !acknowledged.contains(r['recordId'])).toList(),
+          'notes': pendingNotes.where((n) => !acknowledgedNotes.contains(n['noteId'])).toList(),
         };
       case 'ack':
-        final ids = (body['ids'] as List).cast<String>();
-        if (!dropAcknowledgements) acknowledged.addAll(ids);
+        final ids = ((body['ids'] as List?) ?? const []).cast<String>();
+        final noteIds = ((body['noteIds'] as List?) ?? const []).cast<String>();
+        if (!dropAcknowledgements) {
+          acknowledged.addAll(ids);
+          acknowledgedNotes.addAll(noteIds);
+        }
         return {'ok': true, 'acknowledged': ids.length};
       case 'putDevices':
         if (failPush) return {'ok': false, 'error': 'server_error'};

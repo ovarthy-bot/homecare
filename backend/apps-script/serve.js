@@ -27,6 +27,8 @@ backend.post({
       name: 'Philips Kahve Makinesi',
       room: 'Mutfak',
       category: 'Mutfak Aletleri',
+      modelInfo: 'Philips EP2220/10',
+      price: 8489.5,
       warranty: 24,
       purchaseDate: '2025-03-10T00:00:00.000',
       serviceInfo: 'Yetkili servis: 0850 000 00 00',

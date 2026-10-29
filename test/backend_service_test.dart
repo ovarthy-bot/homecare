@@ -70,6 +70,8 @@ void main() {
       expect(payload['id'], 3);
       expect(payload['category'], 'Mutfak Aletleri');
       expect(payload['warranty'], 24);
+      expect(payload.containsKey('modelInfo'), isFalse);
+      expect(payload.containsKey('price'), isFalse);
       expect(payload.containsKey('notes'), isFalse);
       expect(payload.containsKey('serviceInfo'), isFalse);
       expect(payload.containsKey('purchaseDate'), isFalse);
@@ -107,7 +109,7 @@ void main() {
         'recordedAt': '2026-10-28T09:15:00.000Z',
       });
 
-      final records = await BackendService(client: fake.client).pullRecords(configured());
+      final records = (await BackendService(client: fake.client).pull(configured())).records;
 
       expect(records, hasLength(1));
       expect(records.single.recordId, 'r1');
@@ -128,9 +130,39 @@ void main() {
         'recordedAt': '2026-10-28T09:15:00.000Z',
       });
 
-      final records = await BackendService(client: fake.client).pullRecords(configured());
+      final records = (await BackendService(client: fake.client).pull(configured())).records;
 
       expect(records.single.taskName, 'Çöp haznesi temizliği şığ');
+    });
+
+    test('web\'de düzenlenen notları da çeker; not göndermeyen eski betikte liste boştur', () async {
+      final fake = FakeBackend();
+      fake.pendingNotes.add({
+        'noteId': 'n1',
+        'deviceId': 3,
+        'text': 'Filtre: F-12 ğüşiöç',
+        'editedAt': '2026-10-28T09:15:00.000Z',
+      });
+
+      final inbox = await BackendService(client: fake.client).pull(configured());
+
+      expect(inbox.notes, hasLength(1));
+      expect(inbox.notes.single.noteId, 'n1');
+      expect(inbox.notes.single.deviceId, 3);
+      expect(inbox.notes.single.text, 'Filtre: F-12 ğüşiöç');
+      expect(inbox.notes.single.editedAt.toUtc(), DateTime.utc(2026, 10, 28, 9, 15));
+
+      final oldScript = BackendService(client: MockClient((_) async => jsonResponse({'ok': true, 'records': []})));
+      expect((await oldScript.pull(configured())).notes, isEmpty);
+    });
+
+    test('onay hem kayıt hem not numaralarını taşır', () async {
+      final fake = FakeBackend();
+
+      await BackendService(client: fake.client).acknowledge(configured(), ['r1'], noteIds: ['n1']);
+
+      expect(fake.acknowledged, ['r1']);
+      expect(fake.acknowledgedNotes, ['n1']);
     });
 
     test('yönlendirme yanıtında Location yoksa durum koduyla hata verir', () async {

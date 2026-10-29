@@ -378,6 +378,37 @@ void main() {
         await eventually(() => backend.deletedDevices.contains(device.id));
       });
 
+      test('web\'de düzenlenen notu cihaza işler, onaylar ve ara depoya geri gönderir', () async {
+        final oralB = await deviceNamed('Oral-B Şarjlı Diş Fırçası');
+        final editedAt = DateTime.now().toUtc().toIso8601String();
+        backend.pendingNotes.addAll([
+          {'noteId': 'n1', 'deviceId': oralB.id, 'text': 'Başlık: EB-18', 'editedAt': editedAt},
+          {'noteId': 'n2', 'deviceId': 999999, 'text': 'silinmiş cihaz', 'editedAt': editedAt},
+        ]);
+
+        final result = (await webService.syncWithBackend())!;
+
+        expect(result.notesUpdated, 1, reason: 'cihazı olmayan not sayılmaz');
+        expect((await deviceNamed('Oral-B Şarjlı Diş Fırçası')).notes, 'Başlık: EB-18');
+        expect(backend.acknowledgedNotes, unorderedEquals(['n1', 'n2']), reason: 'karşılığı olmayan not da onaylanır');
+        expect(backend.lastPushed(oralB.id)!['notes'], 'Başlık: EB-18', reason: 'web sayfası yeni notu görmeli');
+      });
+
+      test('aynı not yeniden gelirse sayılmaz; web\'de silinen not cihazdan da silinir', () async {
+        final philips = await deviceNamed('Philips Kahve Makinesi');
+        philips.notes = 'Eski not';
+        await isar.writeTxn(() => isar.deviceModels.put(philips));
+        final editedAt = DateTime.now().toUtc().toIso8601String();
+
+        backend.pendingNotes.add({'noteId': 'n3', 'deviceId': philips.id, 'text': 'Eski not', 'editedAt': editedAt});
+        expect((await webService.syncWithBackend())!.notesUpdated, 0, reason: 'metin zaten aynı');
+
+        backend.pendingNotes.add({'noteId': 'n4', 'deviceId': philips.id, 'text': '', 'editedAt': editedAt});
+        expect((await webService.syncWithBackend())!.notesUpdated, 1);
+        expect((await deviceNamed('Philips Kahve Makinesi')).notes, '');
+        expect(backend.lastPushed(philips.id)!.containsKey('notes'), isFalse);
+      });
+
       test('uygulama içi bakım kaydı güncel tarihi ara depoya gönderir', () async {
         final xiaomi = await deviceNamed('Xiaomi Mop Pro Robot Süpürge');
         final task = xiaomi.tasks.first;

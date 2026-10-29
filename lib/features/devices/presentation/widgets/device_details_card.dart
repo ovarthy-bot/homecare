@@ -72,6 +72,7 @@ class _DeviceDetailsCardState extends State<DeviceDetailsCard> {
 
     final model = device.modelInfo?.trim() ?? '';
     final notes = device.notes?.trim() ?? '';
+    final serviceInfo = device.serviceInfo?.trim() ?? '';
 
     final rows = <Widget>[
       _DetailRow(label: 'Model', value: model),
@@ -93,6 +94,7 @@ class _DeviceDetailsCardState extends State<DeviceDetailsCard> {
             : 'Bitiş: ${_dateFormat.format(warrantyEnd)}',
       ),
       _DetailRow(label: 'Notlar', value: notes, leftAligned: true, emptyText: 'Not eklenmemiş'),
+      if (serviceInfo.isNotEmpty) _DetailRow(label: 'Yetkili servis', value: serviceInfo, leftAligned: true),
     ];
 
     return Padding(

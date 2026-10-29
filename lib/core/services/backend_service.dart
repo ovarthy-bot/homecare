@@ -34,10 +34,38 @@ class WebRecord {
   });
 }
 
+/// Web sayfasında düzenlenmiş, telefonun henüz almadığı cihaz notu.
+class WebNote {
+  final String noteId;
+  final int deviceId;
+
+  /// Boş metin, notun web'den silindiği anlamına gelir.
+  final String text;
+  final DateTime editedAt;
+
+  const WebNote({
+    required this.noteId,
+    required this.deviceId,
+    required this.text,
+    required this.editedAt,
+  });
+}
+
+/// Ara depoda telefonu bekleyen her şey.
+class WebInbox {
+  final List<WebRecord> records;
+  final List<WebNote> notes;
+
+  const WebInbox({required this.records, required this.notes});
+}
+
 /// [IsarService.syncWithBackend] sonucu.
 class WebSyncResult {
   /// Telefona eklenen web kayıtları.
   final int imported;
+
+  /// Web'den değiştirilip telefona alınan cihaz notları.
+  final int notesUpdated;
 
   /// Bu telefonda karşılığı olmayan (cihaz ya da görev silinmiş) ve atlanan kayıtlar.
   final int unmatched;
@@ -50,6 +78,7 @@ class WebSyncResult {
 
   const WebSyncResult({
     required this.imported,
+    this.notesUpdated = 0,
     required this.unmatched,
     required this.pushedDevices,
     this.pushError,
@@ -58,6 +87,7 @@ class WebSyncResult {
   /// Kullanıcıya gösterilecek tek satırlık özet.
   String get summary => [
         imported == 0 ? 'Yeni web kaydı yok' : '$imported web kaydı eklendi',
+        if (notesUpdated > 0) '$notesUpdated not güncellendi',
         if (unmatched > 0) '$unmatched kayıt eşleşmedi (cihaz silinmiş olabilir)',
         pushError == null ? '$pushedDevices cihaz güncellendi' : 'cihazlar gönderilemedi: $pushError',
       ].join(' · ');
@@ -90,6 +120,8 @@ class BackendService {
         'name': device.name,
         'room': device.room,
         if (device.category?.isNotEmpty ?? false) 'category': device.category,
+        if (device.modelInfo?.isNotEmpty ?? false) 'modelInfo': device.modelInfo,
+        if (device.price != null) 'price': device.price,
         'warranty': device.warrantyMonths,
         if (device.purchaseDate != null) 'purchaseDate': device.purchaseDate!.toIso8601String(),
         if (device.serviceInfo?.isNotEmpty ?? false) 'serviceInfo': device.serviceInfo,
@@ -119,25 +151,41 @@ class BackendService {
   Future<void> deleteDevice(SettingsModel settings, int deviceId) =>
       _call(settings, {'action': 'deleteDevice', 'id': deviceId});
 
-  /// Henüz içe aktarılmamış (bekleyen) kayıtlar, eskiden yeniye.
-  Future<List<WebRecord>> pullRecords(SettingsModel settings) async {
+  /// Henüz içe aktarılmamış (bekleyen) kayıtlar eskiden yeniye, ve web'de düzenlenmiş notlar.
+  /// Notları desteklemeyen eski bir betik `notes` göndermez; o zaman not listesi boştur.
+  Future<WebInbox> pull(SettingsModel settings) async {
     final data = await _call(settings, {'action': 'pull'});
-    return [
-      for (final raw in (data['records'] as List? ?? const []))
-        WebRecord(
-          recordId: raw['recordId'] as String,
-          deviceId: (raw['deviceId'] as num).toInt(),
-          taskId: (raw['taskId'] as num).toInt(),
-          taskName: raw['taskName'] as String,
-          recordedAt: DateTime.parse(raw['recordedAt'] as String).toLocal(),
-        ),
-    ];
+    return WebInbox(
+      records: [
+        for (final raw in (data['records'] as List? ?? const []))
+          WebRecord(
+            recordId: raw['recordId'] as String,
+            deviceId: (raw['deviceId'] as num).toInt(),
+            taskId: (raw['taskId'] as num).toInt(),
+            taskName: raw['taskName'] as String,
+            recordedAt: DateTime.parse(raw['recordedAt'] as String).toLocal(),
+          ),
+      ],
+      notes: [
+        for (final raw in (data['notes'] as List? ?? const []))
+          WebNote(
+            noteId: raw['noteId'] as String,
+            deviceId: (raw['deviceId'] as num).toInt(),
+            text: raw['text'] as String,
+            editedAt: DateTime.parse(raw['editedAt'] as String).toLocal(),
+          ),
+      ],
+    );
   }
 
-  /// İçe aktarılan kayıtları ara depoda "alındı" yapar; bir daha çekilmez.
-  Future<void> acknowledge(SettingsModel settings, List<String> recordIds) async {
-    if (recordIds.isEmpty) return;
-    await _call(settings, {'action': 'ack', 'ids': recordIds});
+  /// İçe aktarılan kayıt ve notları ara depoda "alındı" yapar; bir daha çekilmez.
+  Future<void> acknowledge(SettingsModel settings, List<String> recordIds, {List<String> noteIds = const []}) async {
+    if (recordIds.isEmpty && noteIds.isEmpty) return;
+    await _call(settings, {
+      'action': 'ack',
+      if (recordIds.isNotEmpty) 'ids': recordIds,
+      if (noteIds.isNotEmpty) 'noteIds': noteIds,
+    });
   }
 
   /// Her çağrı POST'tur (anahtar adreste, günlüklerde kalmasın). Apps Script yanıtı bir
