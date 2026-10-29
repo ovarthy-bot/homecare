@@ -115,7 +115,9 @@ class BackendService {
   static String? qrKeyFor(SettingsModel settings, int deviceId) =>
       isConfigured(settings) ? deviceKey(settings.syncKey!.trim(), deviceId) : null;
 
-  static Map<String, dynamic> devicePayload(DeviceModel device) => {
+  /// [imageStamp]: cihaz fotoğrafının dosya damgası (`DeviceImages.stampOf`). Ara depo bunu
+  /// saklananla karşılaştırıp küçük resmi gerekirse ister.
+  static Map<String, dynamic> devicePayload(DeviceModel device, {String? imageStamp}) => {
         'id': device.id,
         'name': device.name,
         'room': device.room,
@@ -126,6 +128,7 @@ class BackendService {
         if (device.purchaseDate != null) 'purchaseDate': device.purchaseDate!.toIso8601String(),
         if (device.serviceInfo?.isNotEmpty ?? false) 'serviceInfo': device.serviceInfo,
         if (device.notes?.isNotEmpty ?? false) 'notes': device.notes,
+        'imageStamp': ?imageStamp,
         'tasks': [
           for (final task in device.tasks)
             {
@@ -141,12 +144,30 @@ class BackendService {
   Future<void> ping(SettingsModel settings) => _call(settings, {'action': 'ping'});
 
   /// Cihazları ara depoya yazar (varsa günceller). Görevlerin yüklü olması gerekir.
-  Future<void> pushDevices(SettingsModel settings, List<DeviceModel> devices) async {
+  ///
+  /// [imageStamps] fotoğrafı olan cihazların dosya damgalarıdır. Dönen kümede, ara deponun küçük
+  /// resmini istediği (yeni ya da değişmiş fotoğraflı) cihaz numaraları vardır; [putImage] ile yüklenir.
+  /// Resim desteği olmayan eski bir betik `needImage` göndermez; o zaman küme boştur.
+  Future<Set<int>> pushDevices(
+    SettingsModel settings,
+    List<DeviceModel> devices, {
+    Map<int, String> imageStamps = const {},
+  }) async {
+    final needImage = <int>{};
     for (var start = 0; start < devices.length; start += _maxDevicesPerRequest) {
       final chunk = devices.skip(start).take(_maxDevicesPerRequest);
-      await _call(settings, {'action': 'putDevices', 'devices': chunk.map(devicePayload).toList()});
+      final data = await _call(settings, {
+        'action': 'putDevices',
+        'devices': [for (final device in chunk) devicePayload(device, imageStamp: imageStamps[device.id])],
+      });
+      needImage.addAll([for (final id in (data['needImage'] as List? ?? const [])) (id as num).toInt()]);
     }
+    return needImage;
   }
+
+  /// Cihaz fotoğrafının küçük kopyasını (`data:image/jpeg;base64,...`) ara depoya yazar.
+  Future<void> putImage(SettingsModel settings, int deviceId, String dataUrl, String stamp) =>
+      _call(settings, {'action': 'putImage', 'id': deviceId, 'image': dataUrl, 'stamp': stamp});
 
   Future<void> deleteDevice(SettingsModel settings, int deviceId) =>
       _call(settings, {'action': 'deleteDevice', 'id': deviceId});

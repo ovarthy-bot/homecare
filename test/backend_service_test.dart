@@ -72,6 +72,7 @@ void main() {
       expect(payload['warranty'], 24);
       expect(payload.containsKey('modelInfo'), isFalse);
       expect(payload.containsKey('price'), isFalse);
+      expect(payload.containsKey('imageStamp'), isFalse);
       expect(payload.containsKey('notes'), isFalse);
       expect(payload.containsKey('serviceInfo'), isFalse);
       expect(payload.containsKey('purchaseDate'), isFalse);
@@ -80,6 +81,62 @@ void main() {
       expect(tasks.map((t) => t['id']), [11, 12]);
       expect(tasks[0]['lastCompletedAt'], '2026-10-01T08:30:00.000Z');
       expect(tasks[1].containsKey('lastCompletedAt'), isFalse);
+    });
+  });
+
+  group('cihaz resmi', () {
+    DeviceModel deviceOf(int id) => TestDevice([])
+      ..id = id
+      ..name = 'Cihaz $id'
+      ..room = 'Salon';
+
+    test('damga yükte gider; ara deponun istediği cihaz numaraları döner', () async {
+      final fake = FakeBackend();
+      final service = BackendService(client: fake.client);
+
+      final wanted = await service.pushDevices(
+        configured(),
+        [deviceOf(1), deviceOf(2)],
+        imageStamps: {1: 's1'},
+      );
+
+      expect(wanted, {1});
+      final sent = (fake.requests.single['devices'] as List).cast<Map<String, dynamic>>();
+      expect(sent[0]['imageStamp'], 's1');
+      expect(sent[1].containsKey('imageStamp'), isFalse, reason: 'fotoğrafı olmayan cihaza damga konmaz');
+    });
+
+    test('ara depo resmi zaten biliyorsa istemez', () async {
+      final fake = FakeBackend();
+      fake.images[1] = (stamp: 's1', data: 'data:image/jpeg;base64,AAAA');
+
+      final wanted = await BackendService(client: fake.client)
+          .pushDevices(configured(), [deviceOf(1)], imageStamps: {1: 's1'});
+
+      expect(wanted, isEmpty);
+    });
+
+    test('resim desteği olmayan eski betikte istek listesi boştur', () async {
+      final oldScript = BackendService(client: MockClient((_) async => jsonResponse({'ok': true, 'stored': 1})));
+
+      final wanted = await oldScript.pushDevices(configured(), [deviceOf(1)], imageStamps: {1: 's1'});
+
+      expect(wanted, isEmpty);
+    });
+
+    test('küçük resim damgasıyla birlikte yüklenir', () async {
+      final fake = FakeBackend();
+
+      await BackendService(client: fake.client).putImage(configured(), 3, 'data:image/jpeg;base64,AAAA', 's9');
+
+      expect(fake.requests.single, {
+        'action': 'putImage',
+        'id': 3,
+        'image': 'data:image/jpeg;base64,AAAA',
+        'stamp': 's9',
+        'key': 'secret',
+      });
+      expect(fake.images[3], (stamp: 's9', data: 'data:image/jpeg;base64,AAAA'));
     });
   });
 

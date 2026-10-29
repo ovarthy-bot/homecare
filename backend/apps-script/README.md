@@ -41,8 +41,9 @@ Sizin telefonunuz (Homecare) ── açılışta kayıtları çeker, cihazları 
   “Web'den” işaretiyle görünür.
 
 Betiği sonradan değiştirirseniz `Dağıt → Dağıtımları yönet → düzenle → Yeni sürüm` demeniz gerekir;
-yoksa eski sürüm çalışmaya devam eder. Web'den not düzenleme ile model/fiyat gösterimi `Code.gs`'in bu
-sürümünü gerektirir: eski betikte not kutusu "Ara depo betiği güncel değil" der, model ve fiyat sayfada "—" görünür.
+yoksa eski sürüm çalışmaya devam eder. Web'den not düzenleme, model/fiyat ve fotoğraf gösterimi `Code.gs`'in bu
+sürümünü gerektirir: eski betikte not kutusu "Ara depo betiği güncel değil" der, model ve fiyat sayfada "—" görünür,
+fotoğraf yerine genel simge kalır.
 Betiği güncelledikten sonra uygulamada Ayarlar → Şimdi Eşitle ile cihazları bir kez yeniden gönderin.
 
 ## Nasıl çalışır, neye dikkat etmeli?
@@ -50,8 +51,8 @@ Betiği güncelledikten sonra uygulamada Ayarlar → Şimdi Eşitle ile cihazlar
 - **İki tür anahtar.** Sahip anahtarı (`SECRET`) yalnızca uygulamadadır: cihaz yükler, bekleyen kayıtları çeker.
   Karekoda yazılan anahtar `HMAC-SHA256(SECRET, cihaz numarası)`'nın ilk 16 hanesidir: **yalnızca o cihazın**
   bilgisini okur ve o cihaza kayıt bırakır. Birinin karekodun fotoğrafını çekmesi diğer cihazları açmaz, ama o cihazın
-  bilgisini (model, fiyat, servis, notlar dahil) görmesini, sahte kayıt bırakmasını ve notunu değiştirmesini
-  sağlar. Evdeki kullanım için makul bir ödünleşimdir; aşırı kayıt bırakılırsa bekleyen kayıt sınırı (500) ve
+  bilgisini (model, fiyat, servis, notlar ve fotoğrafı dahil) görmesini, sahte kayıt bırakmasını ve notunu
+  değiştirmesini sağlar. Evdeki kullanım için makul bir ödünleşimdir; aşırı kayıt bırakılırsa bekleyen kayıt sınırı (500) ve
   60 sn tekrar koruması devreye girer. Fiyat ve model yalnızca bu anahtarlı yoldan gider; GitHub'a yazılan
   herkese açık cihaz dosyasına (eski yöntem) konmaz.
 - **Sahte kaydı fark edersiniz.** Web'den gelen her kayıt geçmişte “Web'den” işaretiyle görünür.
@@ -68,6 +69,11 @@ Betiği güncelledikten sonra uygulamada Ayarlar → Şimdi Eşitle ile cihazlar
   sayfasında (cihaz başına en fazla bir satır) bekler, sayfa yenilense de görünür kalır; uygulama açılınca
   (ya da Şimdi Eşitle ile) telefondaki cihaz notunu günceller ve satır silinir. Aynı notu hem web'de hem
   telefonda değiştirirseniz, telefon eşitlenirken web'deki bekleyen not geçerli olur.
+- **Cihaz fotoğrafı.** Fotoğraf telefonda bir dosyadır; web sayfası onu göremez. Uygulama eşitlerken fotoğraftan
+  en uzun kenarı 256 piksel olan küçük bir JPEG (yaklaşık 15–25 KB) üretip `Resimler` sayfasına yükler;
+  sayfa bunu başlıktaki simgenin yerinde gösterir. Resim yalnızca fotoğraf değişince yeniden yüklenir
+  (uygulama dosya damgası gönderir, betik farklıysa resmi ister); fotoğraf kaldırılınca ya da cihaz silinince
+  Sheet'ten de silinir. Asıl fotoğraf telefondan çıkmaz.
 - **Tek sahip telefonu.** Kayıtlar çekilince “alındı” işaretlenir; aynı anahtarla iki telefon eşitlenirse
   kaydı yalnızca ilk çeken telefon görür.
 - **`SECRET`'ı değiştirirseniz** uygulamadaki anahtarı da güncelleyin ve karekodları yeniden yazdırın.

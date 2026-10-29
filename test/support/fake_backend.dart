@@ -17,6 +17,9 @@ class FakeBackend {
   /// `pull` ile dönecek, web'de düzenlenmiş notlar (onaylananlar çıkarılır).
   final pendingNotes = <Map<String, dynamic>>[];
   final acknowledgedNotes = <String>[];
+
+  /// Ara depodaki küçük resimler: cihaz numarası -> damga ve veri.
+  final images = <int, ({String stamp, String data})>{};
   final pushedDevices = <Map<String, dynamic>>[];
   final deletedDevices = <int>[];
   final requests = <Map<String, dynamic>>[];
@@ -69,7 +72,22 @@ class FakeBackend {
         if (failPush) return {'ok': false, 'error': 'server_error'};
         final devices = (body['devices'] as List).cast<Map<String, dynamic>>();
         pushedDevices.addAll(devices);
-        return {'ok': true, 'stored': devices.length};
+
+        // Gerçek betik gibi: damga değiştiyse resmi ister, fotoğrafı kalkmışsa saklananı siler.
+        final needImage = <int>[];
+        for (final device in devices) {
+          final id = device['id'] as int;
+          final stamp = device['imageStamp'] as String?;
+          if (stamp == null) {
+            images.remove(id);
+          } else if (images[id]?.stamp != stamp) {
+            needImage.add(id);
+          }
+        }
+        return {'ok': true, 'stored': devices.length, 'needImage': needImage};
+      case 'putImage':
+        images[body['id'] as int] = (stamp: body['stamp'] as String, data: body['image'] as String);
+        return {'ok': true};
       case 'deleteDevice':
         deletedDevices.add(body['id'] as int);
         return {'ok': true, 'deleted': true};

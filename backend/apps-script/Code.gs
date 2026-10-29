@@ -7,8 +7,8 @@
  * Kurulum: backend/apps-script/README.md
  *
  * İki tür çağıran vardır:
- *  - Sahip (uygulama): `key` = betik özelliklerindeki SECRET. Cihaz bilgisi yükler,
- *    bekleyen kayıtları çeker ve onaylar.
+ *  - Sahip (uygulama): `key` = betik özelliklerindeki SECRET. Cihaz bilgisi ve küçük resim
+ *    yükler, bekleyen kayıtları ve notları çeker ve onaylar.
  *  - Ziyaretçi (QR'ı okutan): `k` = HMAC-SHA256(SECRET, cihaz numarası)'nın ilk 16 hanesi.
  *    Yalnızca o cihazın bilgisini okuyabilir, o cihaz için bakım kaydı bırakabilir ve
  *    cihazın notunu değiştirebilir (not, uygulama çekene kadar "bekleyen" durur).
@@ -17,11 +17,17 @@
 var SHEET_DEVICES = 'Cihazlar';
 var SHEET_RECORDS = 'Kayitlar';
 var SHEET_NOTES = 'Notlar';
+var SHEET_IMAGES = 'Resimler';
 var DEVICE_HEADERS = ['id', 'json', 'updatedAt'];
 var RECORD_HEADERS = ['recordId', 'deviceId', 'taskId', 'taskName', 'recordedAt', 'status', 'importedAt'];
 // Cihaz başına en fazla bir bekleyen not satırı tutulur; telefon çekip onaylayınca satır silinir.
 // Metin JSON olarak saklanır: ziyaretçinin yazdığı "=..." gibi bir metin Sheets'te formül sayılmasın.
 var NOTE_HEADERS = ['noteId', 'deviceId', 'text', 'editedAt'];
+// Cihaz fotoğrafının uygulamanın ürettiği küçük kopyası (JPEG data URL). `stamp` uygulamanın dosya
+// damgasıdır: aynıysa resim yeniden yüklenmez. Sheets hücre sınırı 50.000 karakterdir.
+var IMAGE_HEADERS = ['deviceId', 'image', 'stamp', 'updatedAt'];
+var IMAGE_PREFIX = 'data:image/jpeg;base64,';
+var MAX_IMAGE_LENGTH = 45000;
 
 // Aynı cihaz+görev için bu süre içinde gelen ikinci kayıt yok sayılır (çift dokunuş, yeniden deneme).
 var DUPLICATE_WINDOW_MS = 60 * 1000;
@@ -68,6 +74,8 @@ function route_(p) {
       return ownerOnly_(p, secret, function () { return { ok: true }; });
     case 'putDevices':
       return ownerOnly_(p, secret, putDevices_);
+    case 'putImage':
+      return ownerOnly_(p, secret, putImage_);
     case 'deleteDevice':
       return ownerOnly_(p, secret, deleteDevice_);
     case 'pull':
@@ -128,6 +136,7 @@ function getDevice_(p, id) {
   var device = JSON.parse(found.json);
   applyPendingRecords_(device, id);
   applyPendingNote_(device, id);
+  applyImage_(device, id);
   return { ok: true, device: device };
 }
 
@@ -161,6 +170,12 @@ function applyPendingNote_(device, id) {
   if (!pending) return;
   if (pending.text) device.notes = pending.text;
   else delete device.notes;
+}
+
+function applyImage_(device, id) {
+  var sheet = imagesSheet_();
+  var row = indexById_(sheet)[id];
+  if (row) device.image = String(sheet.getRange(row, 2).getValues()[0][0]);
 }
 
 function setNote_(p, id) {
@@ -233,7 +248,10 @@ function putDevices_(p) {
   return withLock_(function () {
     var sheet = devicesSheet_();
     var rowById = indexById_(sheet);
+    var images = readImageStamps_(imagesSheet_());
     var stored = 0;
+    var needImage = [];
+    var staleImageRows = [];
 
     devices.forEach(function (raw) {
       var device = sanitizeDevice_(raw);
@@ -247,8 +265,43 @@ function putDevices_(p) {
         rowById[String(device.id)] = sheet.getLastRow();
       }
       stored++;
+
+      // Fotoğraf damgası değiştiyse telefon küçük resmi yeniden yükler; fotoğraf kalktıysa resim silinir.
+      var storedImage = images[String(device.id)];
+      if (raw.imageStamp) {
+        if (!storedImage || storedImage.stamp !== text_(raw.imageStamp)) needImage.push(device.id);
+      } else if (storedImage) {
+        staleImageRows.push(storedImage.row);
+      }
     });
-    return { ok: true, stored: stored };
+
+    deleteRows_(imagesSheet_(), staleImageRows);
+    return { ok: true, stored: stored, needImage: needImage };
+  });
+}
+
+function putImage_(p) {
+  var id = String(p.id || '');
+  if (!/^[0-9]+$/.test(id)) return { ok: false, error: 'bad_request' };
+
+  var image = typeof p.image === 'string' ? p.image : '';
+  if (image.indexOf(IMAGE_PREFIX) !== 0 || !/^[A-Za-z0-9+\/]+={0,2}$/.test(image.substring(IMAGE_PREFIX.length))) {
+    return { ok: false, error: 'bad_request' };
+  }
+  if (image.length > MAX_IMAGE_LENGTH) return { ok: false, error: 'too_large' };
+
+  return withLock_(function () {
+    if (!findDevice_(id)) return { ok: false, error: 'not_found' };
+
+    var sheet = imagesSheet_();
+    var values = [id, image, text_(p.stamp), now_().toISOString()];
+    var row = indexById_(sheet)[id];
+    if (row) {
+      sheet.getRange(row, 1, 1, IMAGE_HEADERS.length).setValues([values]);
+    } else {
+      sheet.appendRow(values);
+    }
+    return { ok: true };
   });
 }
 
@@ -261,6 +314,8 @@ function deleteDevice_(p) {
     if (row) devicesSheet_().deleteRow(row);
     var noteRow = indexNotesByDevice_(notesSheet_())[id];
     if (noteRow) notesSheet_().deleteRow(noteRow);
+    var imageRow = indexById_(imagesSheet_())[id];
+    if (imageRow) imagesSheet_().deleteRow(imageRow);
     return { ok: true, deleted: !!row };
   });
 }
@@ -354,6 +409,24 @@ function findDevice_(id) {
   return { row: row, json: String(sheet.getRange(row, 2).getValues()[0][0]) };
 }
 
+/** cihaz numarası -> { row, stamp }. Resmin kendisi okunmaz: büyük. */
+function readImageStamps_(sheet) {
+  var map = {};
+  var last = sheet.getLastRow();
+  if (last < 2) return map;
+  var ids = sheet.getRange(2, 1, last - 1, 1).getValues();
+  var stamps = sheet.getRange(2, 3, last - 1, 1).getValues();
+  ids.forEach(function (row, i) {
+    map[String(row[0])] = { row: i + 2, stamp: String(stamps[i][0]) };
+  });
+  return map;
+}
+
+/** Satırları alttan üste siler; satır numaraları kaymasın. */
+function deleteRows_(sheet, rows) {
+  rows.slice().sort(function (a, b) { return b - a; }).forEach(function (row) { sheet.deleteRow(row); });
+}
+
 /** id -> satır numarası. */
 function indexById_(sheet) {
   var map = {};
@@ -430,6 +503,10 @@ function recordsSheet_() {
 
 function notesSheet_() {
   return sheet_(SHEET_NOTES, NOTE_HEADERS);
+}
+
+function imagesSheet_() {
+  return sheet_(SHEET_IMAGES, IMAGE_HEADERS);
 }
 
 /** Sayfayı yoksa başlık satırıyla oluşturur. Tüm hücreler metin: Sheets tarih/sayı çevirmesin. */

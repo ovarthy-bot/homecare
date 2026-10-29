@@ -14,6 +14,7 @@ import 'dart:io';
 import '../../core/services/notification_service.dart';
 import '../../core/services/github_service.dart';
 import '../../core/services/backend_service.dart';
+import '../../core/services/device_image_service.dart';
 
 class IsarService {
   late Future<Isar> db;
@@ -415,9 +416,30 @@ class IsarService {
       if (!BackendService.isConfigured(settings)) return;
       final device = await getDeviceById(deviceId);
       if (device == null) return;
-      await _backend.pushDevices(settings, [device]);
+      await _pushToBackend(settings, [device]);
     } catch (e) {
       debugPrint('Cihaz ara depoya gönderilemedi: $e');
+    }
+  }
+
+  /// Cihazları ara depoya gönderir. Ara depo yeni ya da değişmiş fotoğrafı olan cihazın küçük resmini
+  /// isterse onu da yükler; resim yüklenemezse sonuç bozulmaz, bir sonraki eşitlemede yeniden istenir.
+  Future<void> _pushToBackend(SettingsModel settings, List<DeviceModel> devices) async {
+    final stamps = <int, String>{};
+    for (final device in devices) {
+      final stamp = await DeviceImages.stampOf(device.imagePath);
+      if (stamp != null) stamps[device.id] = stamp;
+    }
+
+    final wanted = await _backend.pushDevices(settings, devices, imageStamps: stamps);
+
+    for (final device in devices.where((d) => wanted.contains(d.id) && stamps.containsKey(d.id))) {
+      try {
+        final image = await DeviceImages.thumbnailDataUrl(device.imagePath!);
+        if (image != null) await _backend.putImage(settings, device.id, image, stamps[device.id]!);
+      } catch (e) {
+        debugPrint('Cihaz resmi ara depoya gönderilemedi: $e');
+      }
     }
   }
 
@@ -456,7 +478,7 @@ class IsarService {
       for (final device in devices) {
         await device.tasks.load();
       }
-      await _backend.pushDevices(settings, devices);
+      await _pushToBackend(settings, devices);
       pushedDevices = devices.length;
     } catch (e) {
       pushError = '$e';

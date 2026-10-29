@@ -397,6 +397,87 @@ describe('Code.gs', () => {
     });
   });
 
+  describe('cihaz resmi', () => {
+    const jpeg = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBD==';
+    const push = (device) => backend.post(owner({ action: 'putDevices', devices: [device] }));
+    const withStamp = (stamp) => ({ ...coffeeMachine, imageStamp: stamp });
+    const putImage = (extra) => backend.post(owner({ action: 'putImage', id: 3, image: jpeg, stamp: 's1', ...extra }));
+
+    it('fotoğrafı olan cihaz için resim istenir; yüklenince sayfa resmi görür', () => {
+      assert.deepEqual(push(withStamp('s1')).needImage, [3]);
+      assert.equal('image' in backend.get({ action: 'device', ...visitor(3) }).device, false);
+
+      assert.deepEqual(putImage(), { ok: true });
+
+      assert.equal(backend.get({ action: 'device', ...visitor(3) }).device.image, jpeg);
+    });
+
+    it('damga değişmediyse resim yeniden istenmez, değiştiyse istenir', () => {
+      push(withStamp('s1'));
+      putImage();
+
+      assert.deepEqual(push(withStamp('s1')).needImage, []);
+      assert.deepEqual(push(withStamp('s2')).needImage, [3]);
+    });
+
+    it('resim yenilenince satır çoğalmaz', () => {
+      push(withStamp('s1'));
+      putImage();
+      putImage({ stamp: 's2', image: 'data:image/jpeg;base64,AAAA' });
+
+      assert.equal(backend.sheets.get('Resimler').getLastRow(), 2, 'başlık + tek resim');
+      assert.equal(backend.get({ action: 'device', ...visitor(3) }).device.image, 'data:image/jpeg;base64,AAAA');
+    });
+
+    it('fotoğraf kaldırılınca (damga yok) saklanan resim silinir', () => {
+      push(withStamp('s1'));
+      putImage();
+
+      assert.deepEqual(push(coffeeMachine).needImage, []);
+
+      assert.equal('image' in backend.get({ action: 'device', ...visitor(3) }).device, false);
+      assert.equal(backend.sheets.get('Resimler').getLastRow(), 1);
+    });
+
+    it('resmi olmayan cihazlar ve damgasız gönderim resme dokunmaz', () => {
+      push(withStamp('s1'));
+      putImage();
+      backend.post(owner({ action: 'putDevices', devices: [{ id: 4, name: 'Başka', room: 'x' }] }));
+
+      assert.equal(backend.get({ action: 'device', ...visitor(3) }).device.image, jpeg);
+    });
+
+    it('resim yalnızca sahip anahtarıyla yüklenir', () => {
+      push(withStamp('s1'));
+      const visitorAttempt = backend.post({ action: 'putImage', ...visitor(3, { image: jpeg }), key: keyFor(3) });
+
+      assert.deepEqual(visitorAttempt, { ok: false, error: 'forbidden' });
+      assert.equal(backend.post({ action: 'putImage', id: 3, image: jpeg }).error, 'forbidden');
+    });
+
+    it('JPEG olmayan, bozuk ya da çok büyük resim ve bilinmeyen cihaz reddedilir', () => {
+      push(withStamp('s1'));
+
+      assert.equal(putImage({ image: 'data:image/png;base64,AAAA' }).error, 'bad_request');
+      assert.equal(putImage({ image: 'https://kotu.example/x.jpg' }).error, 'bad_request');
+      assert.equal(putImage({ image: 'data:image/jpeg;base64,AA"><script>' }).error, 'bad_request');
+      assert.equal(putImage({ image: 42 }).error, 'bad_request');
+      assert.equal(putImage({ id: 'abc' }).error, 'bad_request');
+      assert.equal(putImage({ image: `data:image/jpeg;base64,${'A'.repeat(45000)}` }).error, 'too_large');
+      assert.equal(putImage({ id: 99 }).error, 'not_found');
+      assert.equal(backend.sheets.get('Resimler').getLastRow(), 1, 'hiçbiri yazılmadı');
+    });
+
+    it('cihaz silinince resmi de silinir', () => {
+      push(withStamp('s1'));
+      putImage();
+
+      backend.post(owner({ action: 'deleteDevice', id: 3 }));
+
+      assert.equal(backend.sheets.get('Resimler').getLastRow(), 1);
+    });
+  });
+
   describe('çekme ve onaylama', () => {
     it('onaylanan kayıtlar bir daha gelmez, onaylanmayanlar kalır', () => {
       backend.post({ action: 'record', ...visitor(3, { taskIds: [11, 12] }) });

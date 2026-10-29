@@ -89,6 +89,14 @@
             fill: #fff;
         }
 
+        .icon-wrapper img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: inherit;
+        }
+
         .device-name {
             font-size: 1.4rem;
             font-weight: 700;
@@ -831,6 +839,13 @@
             check: '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
         };
 
+        // Uygulamanın yüklediği küçük fotoğraf varsa o, yoksa genel cihaz simgesi. Adrese konacağı için
+        // yalnızca beklenen biçimdeki JPEG data URL kabul edilir.
+        function deviceIconHtml(device) {
+            const photo = typeof device.image === 'string' && /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(device.image);
+            return photo ? `<img src="${device.image}" alt="">` : ICONS.device;
+        }
+
         function detailRow(label, value, { caption = '', left = false, emptyText = '—', id = '' } = {}) {
             const empty = !value;
             // Değer aralıksız yazılır: sola yaslı satırlarda `pre-wrap` şablondaki boşluğu da gösterirdi.
@@ -941,7 +956,7 @@
 
             app.innerHTML = `
                 <section class="card header">
-                    <div class="icon-wrapper">${ICONS.device}</div>
+                    <div class="icon-wrapper">${deviceIconHtml(device)}</div>
                     <div>
                         <h1 class="device-name">${esc(device.name || 'İsimsiz Cihaz')}</h1>
                         <p class="device-room">${esc(device.room || 'Oda belirtilmemiş')}${device.category ? ' · ' + esc(device.category) : ''}</p>

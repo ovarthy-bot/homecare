@@ -5,6 +5,7 @@ import 'dart:ffi' show Abi;
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:isar/isar.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
@@ -407,6 +408,43 @@ void main() {
         expect((await webService.syncWithBackend())!.notesUpdated, 1);
         expect((await deviceNamed('Philips Kahve Makinesi')).notes, '');
         expect(backend.lastPushed(philips.id)!.containsKey('notes'), isFalse);
+      });
+
+      test('fotoğraflı cihazın küçük resmi bir kez yüklenir; fotoğraf kalkınca ara depodan da silinir', () async {
+        final oralB = await deviceNamed('Oral-B Şarjlı Diş Fırçası');
+        final photo = File('${tempDir.path}${Platform.pathSeparator}oralb.png')
+          ..writeAsBytesSync(img.encodePng(img.Image(width: 400, height: 300)));
+        oralB.imagePath = photo.path;
+        await isar.writeTxn(() => isar.deviceModels.put(oralB));
+        int uploads() => backend.requests.where((r) => r['action'] == 'putImage').length;
+
+        await webService.syncWithBackend();
+
+        expect(backend.images[oralB.id]!.data, startsWith('data:image/jpeg;base64,'));
+        expect(uploads(), 1);
+
+        await webService.syncWithBackend();
+        expect(uploads(), 1, reason: 'dosya değişmedi, resim yeniden gönderilmez');
+
+        oralB.imagePath = null;
+        await isar.writeTxn(() => isar.deviceModels.put(oralB));
+        await webService.syncWithBackend();
+        expect(backend.images.containsKey(oralB.id), isFalse, reason: 'fotoğraf kaldırıldı');
+      });
+
+      test('resim yüklenemese de eşitleme başarılı sayılır', () async {
+        final philips = await deviceNamed('Philips Kahve Makinesi');
+        final photo = File('${tempDir.path}${Platform.pathSeparator}bozuk.jpg')..writeAsBytesSync([1, 2, 3]);
+        philips.imagePath = photo.path;
+        await isar.writeTxn(() => isar.deviceModels.put(philips));
+
+        final result = (await webService.syncWithBackend())!;
+
+        expect(result.pushError, isNull);
+        expect(backend.images.containsKey(philips.id), isFalse, reason: 'çözülemeyen dosya yüklenmez');
+
+        philips.imagePath = null;
+        await isar.writeTxn(() => isar.deviceModels.put(philips));
       });
 
       test('uygulama içi bakım kaydı güncel tarihi ara depoya gönderir', () async {
